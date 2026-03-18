@@ -1,70 +1,46 @@
-# Issue 1 - Project Bootstrap (Estratos)
+# Issue 1 — Project Bootstrap
 
 ## Objective
 
-Initialize the Estratos project with a complete base setup:
-- Backend application running (empty, no business logic)
-- PostgreSQL database running in Docker (no schema required yet)
-- Frontend application running (empty UI)
-- All core dependencies installed and ready for future development
+Set up a clean, working development environment for Estratos:
 
-This issue focuses only on bootstrapping and environment readiness.
+- Phoenix app running (empty, no business logic)
+- PostgreSQL + PostGIS running in Docker
+- Core dependencies installed
+- No schemas, migrations, or domain logic yet
 
-## Tech Stack (defined for this project)
+## Tech Stack
 
-- Backend: Elixir + Phoenix + LiveView
-- Database: PostgreSQL with PostGIS (Dockerized)
-- Frontend: Phoenix LiveView (no separate SPA)
-- Containerization: Docker (for database only)
+| Component | Version |
+|---|---|
+| Elixir | >= 1.18 |
+| Erlang/OTP | >= 27 |
+| Phoenix | 1.8+ (with LiveView) |
+| PostgreSQL | 17 (Docker) |
+| PostGIS | 3.4 (Docker) |
+| Node.js | >= 20 |
+| geo_postgis | ~> 3.7 |
 
-## Prerequisites
+---
 
-Ensure the following are installed on your system:
-- Elixir (>= 1.14)
-- Erlang/OTP (>= 25)
-- Phoenix installer
-- Docker
-- Node.js (required by Phoenix for assets)
+## Section 1 — Generate Phoenix Project
 
-## Steps
+- [x] Install Phoenix generator: `mix archive.install hex phx_new`
+- [x] Generate project: `mix phx.new estratos --database postgres --live`
+- [x] Accept dependency install when prompted
+- [x] `cd estratos`
+- [x] Run `mix compile` — no errors
 
-- [ ] Create the Phoenix application
+## Section 2 — Database (Docker)
 
-Run the Phoenix generator with PostgreSQL and LiveView enabled:
+- [x] Create `docker-compose.yml` at project root:
 
-mix phx.new estratos --database postgres --live
-
-When prompted:
-- Install dependencies: Yes
-- Fetch and install assets: Yes
-
-Navigate into the project directory:
-
-cd estratos
-
-- [ ] Verify backend runs (empty app)
-
-Start the Phoenix server:
-
-mix phx.server
-
-Open the browser at:
-http://localhost:4000
-
-Expected result:
-- Default Phoenix page loads
-- No custom logic implemented yet
-
-- [ ] Add Docker configuration for PostgreSQL + PostGIS
-
-Create a docker-compose.yml file at the project root with the following configuration:
-
-version: '3.9'
+```yaml
 services:
   db:
-    image: postgis/postgis:15-3.3
+    image: postgis/postgis:17-3.4
     container_name: estratos_db
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -76,24 +52,16 @@ services:
 
 volumes:
   estratos_db_data:
+```
 
-- [ ] Start the database
+- [x] Run `docker compose up -d`
+- [x] Verify container is up: `docker ps` shows `estratos_db`
 
-Run:
+## Section 3 — Connect Phoenix to DB
 
-docker compose up -d
+- [x] Verify `config/dev.exs` Repo config matches Docker credentials:
 
-Verify the container is running:
-
-docker ps
-
-Expected result:
-- PostgreSQL with PostGIS is running on port 5432
-
-- [ ] Configure Phoenix to use Dockerized DB
-
-Edit config/dev.exs and ensure the Repo config matches:
-
+```elixir
 config :estratos, Estratos.Repo,
   username: "postgres",
   password: "postgres",
@@ -102,74 +70,31 @@ config :estratos, Estratos.Repo,
   port: 5432,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
+```
 
-- [ ] Create the database
+- [ ] Run `mix ecto.create` — database created
+- [ ] Run `mix phx.server`
+- [ ] Open http://localhost:4000 — default Phoenix page loads
+- [ ] No DB connection errors in terminal
 
-Run:
+## Section 4 — Geo Dependencies
 
-mix ecto.create
+- [x] Add `{:geo_postgis, "~> 3.7"}` to `deps` in `mix.exs`
+- [x] Run `mix deps.get` — no conflicts
 
-Expected result:
-- Database estratos_dev is created successfully
+> [!NOTE]
+> Nothing uses `geo_postgis` yet. This is preparation for Issue 2.
 
-- [ ] Verify full backend + DB integration
+## Section 5 — Final Smoke Test
 
-Start Phoenix again:
+- [ ] `docker ps` → `estratos_db` running
+- [ ] `mix phx.server` → boots without errors
+- [ ] http://localhost:4000 → Phoenix page loads
+- [ ] No schemas, migrations, or domain logic exist in the project
 
-mix phx.server
+---
 
-Expected result:
-- App boots without DB errors
-- No migrations or schemas required yet
+## Done When
 
-- [ ] Verify frontend (LiveView) is working
-
-Open:
-
-http://localhost:4000
-
-Expected result:
-- Phoenix default UI loads correctly
-- LiveView assets are compiled and served
-- No additional frontend setup required
-
-- [ ] Install additional core dependencies (optional but recommended)
-
-Add Geo/PostGIS support for future work:
-
-Update mix.exs to include:
-
-{:geo_postgis, "~> 3.4"}
-
-Run:
-
-mix deps.get
-
-Note:
-No schema uses this yet, this is just preparation.
-
-- [ ] Validate full environment
-
-Ensure all components run together:
-
-- Docker DB is running
-- Phoenix server is running
-- Browser loads the app
-
-No business logic, schemas, or features should exist yet.
-
-## Acceptance Criteria
-
-- Phoenix app boots successfully
-- PostgreSQL (PostGIS) runs in Docker
-- mix ecto.create works
-- No runtime errors related to DB connection
-- Browser shows default Phoenix page
-- Project is ready for feature development
-
-## Notes
-
-- Do not implement any domain logic yet
-- Do not create schemas or migrations beyond default setup
-- Keep the system minimal and clean
-- This issue is complete when the environment is stable and reproducible
+- All checkpoints above are checked off
+- Environment is stable and reproducible

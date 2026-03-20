@@ -1,39 +1,86 @@
-# Issue 1 — Project Bootstrap
+# Issue 1 — Project Bootstrap (Revised)
 
 ## Objective
 
-Set up a clean, working development environment for Estratos:
+Set up a fully dockerized, portable development environment for Estratos:
 
-- Phoenix app running (empty, no business logic)
-- PostgreSQL + PostGIS running in Docker
-- Core dependencies installed
-- No schemas, migrations, or domain logic yet
+- Everything runs via `docker compose up` — no local Elixir/Erlang/Node install required
+- PostgreSQL + PostGIS in Docker
+- Phoenix app in Docker
+- Makefile for all common operations
+- Tool versions pinned in a `.tool-versions` file
+- Environment variables managed via `.env` (gitignored)
+
+---
 
 ## Tech Stack
 
 | Component | Version |
 |---|---|
-| Elixir | >= 1.18 |
-| Erlang/OTP | >= 27 |
+| Elixir | 1.18 |
+| Erlang/OTP | 27 |
 | Phoenix | 1.8+ (with LiveView) |
 | PostgreSQL | 17 (Docker) |
 | PostGIS | 3.4 (Docker) |
-| Node.js | >= 20 |
+| Node.js | 20 |
 | geo_postgis | ~> 3.7 |
 
 ---
 
-## Section 1 — Generate Phoenix Project
+## Section 1 — Tool Versions File [haiku]
 
-- [x] Install Phoenix generator: `mix archive.install hex phx_new`
-- [x] Generate project: `mix phx.new estratos --database postgres --live`
-- [x] Accept dependency install when prompted
-- [x] `cd estratos`
-- [x] Run `mix compile` — no errors
+- [ ] Create `.tool-versions` at project root:
 
-## Section 2 — Database (Docker)
+```
+elixir 1.18
+erlang 27
+nodejs 20
+```
 
-- [x] Create `docker-compose.yml` at project root:
+> Pins versions for asdf/mise. Docker images should match these versions.
+
+---
+
+## Section 2 — Environment Variables [haiku]
+
+- [ ] Create `.env` at project root:
+
+```env
+# Database
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=estratos_dev
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+
+# Phoenix
+SECRET_KEY_BASE=generate-a-real-secret-for-prod
+PHX_HOST=localhost
+PHX_PORT=4000
+MIX_ENV=dev
+```
+
+- [ ] Ensure `.env` is listed in `.gitignore`
+- [ ] Create `.env.example` with the same keys but placeholder values, committed to repo
+
+---
+
+## Section 3 — Dockerize the Phoenix App [sonnet]
+
+- [ ] Create `Dockerfile` at project root:
+  - Use official Elixir image matching `.tool-versions`
+  - Install Node.js, hex, rebar
+  - Copy mix files first, run `mix deps.get` (layer caching)
+  - Copy the rest of the app
+  - Expose port 4000
+  - Default CMD: `mix phx.server`
+- [ ] Ensure hot-reload works by mounting the source code as a volume in dev
+
+---
+
+## Section 4 — Docker Compose (Full Stack) [sonnet]
+
+- [ ] Rewrite `docker-compose.yml` to include both services:
 
 ```yaml
 services:
@@ -41,55 +88,98 @@ services:
     image: postgis/postgis:17-3.4
     container_name: estratos_db
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: estratos_dev
+    env_file: .env
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - estratos_db_data:/var/lib/postgresql/data
 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: estratos_app
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - db
+    ports:
+      - "${PHX_PORT:-4000}:4000"
+    volumes:
+      - .:/app
+      - deps:/app/deps
+      - build:/app/_build
+    stdin_open: true
+    tty: true
+
 volumes:
   estratos_db_data:
+  deps:
+  build:
 ```
 
-- [x] Run `docker compose up -d`
-- [x] Verify container is up: `docker ps` shows `estratos_db`
+- [ ] `docker compose up` boots both services without errors
+- [ ] Phoenix connects to the DB container via hostname `db`
 
-## Section 3 — Connect Phoenix to DB
+---
 
-- [x] Verify `config/dev.exs` Repo config matches Docker credentials:
+## Section 5 — Makefile [haiku]
+
+- [ ] Create `Makefile` at project root with these targets:
+
+| Target | Description |
+|---|---|
+| `make setup` | Build images, install deps, create DB, run migrations |
+| `make up` | Start all services (`docker compose up -d`) |
+| `make down` | Stop all services (`docker compose down`) |
+| `make logs` | Tail logs (`docker compose logs -f`) |
+| `make shell` | Open a shell inside the app container |
+| `make iex` | Open IEx console inside the app container |
+| `make test` | Run tests inside the app container |
+| `make drop` | Stop services and remove volumes (`docker compose down -v`) |
+| `make check-env` | Verify `.env` exists and is in `.gitignore` |
+
+- [ ] `make check-env` should fail with a clear message if `.env` is missing or not gitignored
+
+---
+
+## Section 6 — Connect Phoenix to DB (via Docker network) [sonnet]
+
+- [ ] Update `config/dev.exs` to read from environment variables:
 
 ```elixir
 config :estratos, Estratos.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "estratos_dev",
-  port: 5432,
+  username: System.get_env("POSTGRES_USER", "postgres"),
+  password: System.get_env("POSTGRES_PASSWORD", "postgres"),
+  hostname: System.get_env("POSTGRES_HOST", "db"),
+  database: System.get_env("POSTGRES_DB", "estratos_dev"),
+  port: String.to_integer(System.get_env("POSTGRES_PORT", "5432")),
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 ```
 
-- [ ] Run `mix ecto.create` — database created
-- [ ] Run `mix phx.server`
-- [ ] Open http://localhost:4000 — default Phoenix page loads
-- [ ] No DB connection errors in terminal
+- [ ] `make setup` → DB created, no errors
+- [ ] `make up` → app boots, connects to DB
 
-## Section 4 — Geo Dependencies
+---
 
-- [x] Add `{:geo_postgis, "~> 3.7"}` to `deps` in `mix.exs`
-- [x] Run `mix deps.get` — no conflicts
+## Section 7 — Geo Dependencies [haiku]
 
-> [!NOTE]
-> Nothing uses `geo_postgis` yet. This is preparation for Issue 2.
+- [x] `{:geo_postgis, "~> 3.7"}` already in `mix.exs`
+- [ ] Verify `mix deps.get` works inside Docker container
 
-## Section 5 — Final Smoke Test
+> Nothing uses `geo_postgis` yet. Preparation for Issue 2.
 
-- [ ] `docker ps` → `estratos_db` running
-- [ ] `mix phx.server` → boots without errors
-- [ ] http://localhost:4000 → Phoenix page loads
+---
+
+## Section 8 — Final Smoke Test [sonnet]
+
+- [ ] `make up` → both containers running
+- [ ] `docker ps` → `estratos_db` and `estratos_app` up
+- [ ] http://localhost:4000 → Phoenix default page loads
+- [ ] `make test` → tests pass
+- [ ] `make down` → clean shutdown
+- [ ] `make drop` → volumes removed
 - [ ] No schemas, migrations, or domain logic exist in the project
 
 ---
@@ -97,4 +187,7 @@ config :estratos, Estratos.Repo,
 ## Done When
 
 - All checkpoints above are checked off
-- Environment is stable and reproducible
+- `docker compose up` is the only command needed to run the full app
+- Environment is portable — works on Linux, macOS, and Windows
+- `.env` is gitignored, `.env.example` is committed
+- Makefile covers all common operations

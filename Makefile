@@ -64,7 +64,7 @@ iex:
 
 test: check-env
 	@echo "$(YELLOW)Running tests...$(NC)"
-	docker compose run --rm app mix test
+	docker compose run --rm -e MIX_ENV=test app mix test
 
 drop:
 	@echo "$(RED)Dropping containers and volumes...$(NC)"

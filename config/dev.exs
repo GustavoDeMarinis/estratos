@@ -2,10 +2,11 @@ import Config
 
 # Configure your database
 config :estratos, Estratos.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "estratos_dev",
+  username: System.get_env("POSTGRES_USER", "postgres"),
+  password: System.get_env("POSTGRES_PASSWORD", "postgres"),
+  hostname: System.get_env("POSTGRES_HOST", "db"),
+  database: System.get_env("POSTGRES_DB", "estratos_dev"),
+  port: String.to_integer(System.get_env("POSTGRES_PORT", "5432")),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10

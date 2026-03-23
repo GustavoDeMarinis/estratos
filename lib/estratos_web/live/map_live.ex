@@ -8,9 +8,26 @@ defmodule EstratosWeb.MapLive do
   def mount(_params, _session, socket) do
     map = Worlds.list_maps() |> List.first()
 
+    image_broken =
+      if map do
+        disk_path =
+          Path.join([
+            :code.priv_dir(:estratos),
+            "static",
+            "uploads",
+            "maps",
+            Path.basename(map.image_path)
+          ])
+
+        not File.exists?(disk_path)
+      else
+        false
+      end
+
     socket =
       socket
       |> assign(:map, map)
+      |> assign(:image_broken, image_broken)
       |> assign(:image_dimensions, nil)
       |> allow_upload(:map_image,
         accept: ~w(.jpg .jpeg .png .webp),
@@ -26,7 +43,7 @@ defmodule EstratosWeb.MapLive do
     ~H"""
     <div class="flex flex-col h-full">
       <.navbar uploads={@uploads} />
-      <.map_viewport uploads={@uploads} map={@map} />
+      <.map_viewport uploads={@uploads} map={@map} image_broken={@image_broken} />
       <Layouts.flash_group flash={@flash} />
     </div>
     """
@@ -62,7 +79,7 @@ defmodule EstratosWeb.MapLive do
       phx-hook=".MapContainer"
       class="flex-1 overflow-hidden bg-base-300 select-none relative"
     >
-      <.map_image uploads={@uploads} map={@map} />
+      <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} />
       <.zoom_controls />
     </main>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".MapContainer">
@@ -123,12 +140,7 @@ defmodule EstratosWeb.MapLive do
               : Math.min(tyMax, Math.max(tyMin, this.ty))
           }
 
-          this.zoomFromCenter = (factor) => {
-            const img = this.img()
-            if (!img) return
-            const rect = this.el.getBoundingClientRect()
-            const cx = rect.width / 2
-            const cy = rect.height / 2
+          this.applyZoom = (factor, originX, originY) => {
             const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, this.scale * factor))
             if (newScale <= MIN_SCALE) {
               this.scale = MIN_SCALE
@@ -136,13 +148,19 @@ defmodule EstratosWeb.MapLive do
               this.ty = 0
             } else {
               const ratio = newScale / this.scale
-              this.tx = cx - ratio * (cx - this.tx)
-              this.ty = cy - ratio * (cy - this.ty)
+              this.tx = originX - ratio * (originX - this.tx)
+              this.ty = originY - ratio * (originY - this.ty)
               this.scale = newScale
             }
             this.clamp()
             this.applyTransform()
             this.syncUI()
+          }
+
+          this.zoomFromCenter = (factor) => {
+            if (!this.img()) return
+            const rect = this.el.getBoundingClientRect()
+            this.applyZoom(factor, rect.width / 2, rect.height / 2)
           }
 
           this.syncUI = () => {
@@ -156,31 +174,10 @@ defmodule EstratosWeb.MapLive do
           }
 
           this.onWheel = (e) => {
-            const img = this.img()
-            if (!img) return
+            if (!this.img()) return
             e.preventDefault()
-
             const rect = this.el.getBoundingClientRect()
-            const mouseX = e.clientX - rect.left
-            const mouseY = e.clientY - rect.top
-
-            const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1
-            const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, this.scale * factor))
-
-            if (newScale <= MIN_SCALE) {
-              this.scale = MIN_SCALE
-              this.tx = 0
-              this.ty = 0
-            } else {
-              const ratio = newScale / this.scale
-              this.tx = mouseX - ratio * (mouseX - this.tx)
-              this.ty = mouseY - ratio * (mouseY - this.ty)
-              this.scale = newScale
-            }
-
-            this.clamp()
-            this.applyTransform()
-            this.syncUI()
+            this.applyZoom(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top)
           }
 
           this.onMouseDown = (e) => {
@@ -245,12 +242,21 @@ defmodule EstratosWeb.MapLive do
       />
     <% else %>
       <%= if @map do %>
-        <img
-          src={@map.image_path}
-          class="w-full h-full object-contain"
-          id="map-image"
-          draggable="false"
-        />
+        <%= if @image_broken do %>
+          <div class="flex flex-col items-center justify-center h-full gap-2">
+            <.icon name="hero-exclamation-triangle" class="w-8 h-8 text-warning" />
+            <p class="text-base-content text-sm font-medium">Map image not found</p>
+            <p class="text-base-content/40 text-sm"><%= @map.name %></p>
+          </div>
+        <% else %>
+          <img
+            src={@map.image_path}
+            class="w-full h-full object-contain"
+            id="map-image"
+            draggable="false"
+            phx-hook=".MapImage"
+          />
+        <% end %>
       <% else %>
         <div class="flex items-center justify-center h-full">
           <p class="text-base-content/40 text-sm">Upload a map image to get started</p>
@@ -265,6 +271,10 @@ defmodule EstratosWeb.MapLive do
               width: this.el.naturalWidth,
               height: this.el.naturalHeight
             })
+          })
+
+          this.el.addEventListener("error", () => {
+            this.pushEvent("image_error", {})
           })
 
           if (this.el.complete && this.el.naturalWidth > 0) {
@@ -344,6 +354,7 @@ defmodule EstratosWeb.MapLive do
             {:noreply,
              socket
              |> assign(:map, map)
+             |> assign(:image_broken, false)
              |> assign(:image_dimensions, nil)}
 
           _ ->
@@ -355,5 +366,13 @@ defmodule EstratosWeb.MapLive do
   @impl true
   def handle_event("image_dimensions", %{"width" => width, "height" => height}, socket) do
     {:noreply, assign(socket, :image_dimensions, {width, height})}
+  end
+
+  @impl true
+  def handle_event("image_error", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:image_broken, true)
+     |> put_flash(:error, "Map image failed to load")}
   end
 end

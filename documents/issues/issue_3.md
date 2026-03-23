@@ -43,15 +43,15 @@ Improve the map viewing experience with two focused enhancements: (1) make the m
 
 ## Section 2 — Broken Image Detection [sonnet]
 
-- [ ] Add a server-side check: when mounting MapLive, if a map exists in the DB, verify the image file exists on disk via `File.exists?/1`
-- [ ] If the file is missing, assign an `:image_broken` flag in the socket
-- [ ] Render a broken-image state instead of the `<img>` tag:
+- [x] Add a server-side check: when mounting MapLive, if a map exists in the DB, verify the image file exists on disk via `File.exists?/1`
+- [x] If the file is missing, assign an `:image_broken` flag in the socket
+- [x] Render a broken-image state instead of the `<img>` tag:
   - Centered in the main area (same position as the "Upload a map" empty state)
   - Show a warning icon and the message: "Map image not found"
   - Show a secondary line with the map name, so the user knows which map is affected
   - The "Upload" button remains functional so the user can re-upload
-- [ ] Add a client-side fallback: attach an `error` event listener on the `<img>` tag via the hook, so if the file exists at mount time but fails to load (e.g., corrupted file), push an event to the server to set the broken state
-- [ ] Handle the `image_error` event on the server: set `:image_broken` to true and show an error flash
+- [x] Add a client-side fallback: attach an `error` event listener on the `<img>` tag via the hook, so if the file exists at mount time but fails to load (e.g., corrupted file), push an event to the server to set the broken state
+- [x] Handle the `image_error` event on the server: set `:image_broken` to true and show an error flash
 
 ---
 

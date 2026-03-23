@@ -15,8 +15,7 @@ defmodule EstratosWeb.MapLive do
       |> allow_upload(:map_image,
         accept: ~w(.jpg .jpeg .png .webp),
         max_entries: 1,
-        max_file_size: 50_000_000,
-        auto_upload: true
+        max_file_size: 50_000_000
       )
 
     {:ok, socket}
@@ -30,29 +29,24 @@ defmodule EstratosWeb.MapLive do
         <div class="flex-1">
           <span class="font-semibold tracking-wide text-base-content">Estratos</span>
         </div>
-        <div class="flex gap-2">
-          <form phx-change="validate" id="upload-form">
-            <label for={@uploads.map_image.ref} class="btn btn-sm btn-outline cursor-pointer">
-              Upload
-            </label>
-            <.live_file_input upload={@uploads.map_image} class="hidden" />
-          </form>
+        <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form">
+          <label for={@uploads.map_image.ref} class="btn btn-sm btn-outline cursor-pointer">
+            Upload
+          </label>
+          <.live_file_input upload={@uploads.map_image} class="hidden" />
           <button
+            type="submit"
             class="btn btn-sm btn-primary"
-            phx-click="save"
-            disabled={
-              @uploads.map_image.entries == [] or
-                Enum.any?(@uploads.map_image.entries, &(!&1.done?))
-            }
+            disabled={@uploads.map_image.entries == []}
           >
             Save
           </button>
-        </div>
+        </form>
       </header>
       <main class="flex-1 overflow-hidden bg-base-300">
         <%= if entry = List.first(@uploads.map_image.entries) do %>
-          <img
-            src={live_img_preview(entry)}
+          <.live_img_preview
+            entry={entry}
             class="w-full h-full object-contain"
             phx-hook=".MapImage"
             id="map-preview"
@@ -102,7 +96,9 @@ defmodule EstratosWeb.MapLive do
 
   @impl true
   def handle_event("save", _params, socket) do
-    case socket.assigns.uploads.map_image.entries do
+    entries = socket.assigns.uploads.map_image.entries
+
+    case entries do
       [] ->
         {:noreply, socket}
 
@@ -113,7 +109,7 @@ defmodule EstratosWeb.MapLive do
           end)
 
         case result do
-          [{:ok, image_path}] ->
+          [image_path] when is_binary(image_path) ->
             {width, height} = socket.assigns.image_dimensions || {nil, nil}
 
             {:ok, map} =

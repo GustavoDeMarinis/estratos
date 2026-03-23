@@ -1,9 +1,11 @@
 defmodule Estratos.Worlds do
+  import Ecto.Query
+
   alias Estratos.Repo
   alias Estratos.Worlds.Map
 
   def list_maps do
-    Repo.all(Map)
+    Repo.all(from m in Map, order_by: [desc: m.id])
   end
 
   def get_map(id) do

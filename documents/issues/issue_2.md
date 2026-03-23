@@ -17,7 +17,7 @@ Implement the most basic functional loop of the app: the user can upload a map i
 
 ## Section 1 — Map Schema and Migration [sonnet]
 
-- [ ] Create the `Estratos.Worlds.Map` schema:
+- [x] Create the `Estratos.Worlds.Map` schema:
 
 | Field | Type | Notes |
 |---|---|---|
@@ -28,9 +28,9 @@ Implement the most basic functional loop of the app: the user can upload a map i
 | `image_height` | `:integer` | Native height in pixels (captured at upload time) |
 | `timestamps` | | `inserted_at`, `updated_at` |
 
-- [ ] Create the migration for `maps` table
-- [ ] Create the `Estratos.Worlds` context with basic CRUD for Map (`create_map/1`, `get_map/1`, `list_maps/0`)
-- [ ] Changeset validates: `name` required, `image_path` required
+- [x] Create the migration for `maps` table
+- [x] Create the `Estratos.Worlds` context with basic CRUD for Map (`create_map/1`, `get_map/1`, `list_maps/0`)
+- [x] Changeset validates: `name` required, `image_path` required
 
 > `image_width` and `image_height` are stored at upload time. They cost nothing to capture and will be needed later for scale/distance calculations (Roadmap 7.3).
 
@@ -38,36 +38,36 @@ Implement the most basic functional loop of the app: the user can upload a map i
 
 ## Section 2 — Image Storage [sonnet]
 
-- [ ] Define an upload directory: `priv/static/uploads/maps/`
-- [ ] Create a storage module (`Estratos.MapStorage` or similar) that:
+- [x] Define an upload directory: `priv/static/uploads/maps/`
+- [x] Create a storage module (`Estratos.MapStorage` or similar) that:
   - Receives the uploaded file (temp path from LiveView upload)
   - Generates a unique filename: `{uuid}.{original_extension}`
   - Copies the file to `priv/static/uploads/maps/`
   - Returns the relative path (e.g., `/uploads/maps/abc123.png`)
-- [ ] Add `"uploads"` to the static paths list in `EstratosWeb.static_paths/0` so Phoenix serves the files
-- [ ] Add `priv/static/uploads/` to `.gitignore`
-- [ ] Ensure the uploads directory persists in Docker (it lives inside the mounted `.:/app` volume, so it should work — verify)
+- [x] Add `"uploads"` to the static paths list in `EstratosWeb.static_paths/0` so Phoenix serves the files
+- [x] Add `priv/static/uploads/` to `.gitignore`
+- [x] Ensure the uploads directory persists in Docker (it lives inside the mounted `.:/app` volume, so it should work — verify)
 
 ---
 
 ## Section 3 — Dark Mode Base Layout [sonnet]
 
-- [ ] Replace the current app layout in `EstratosWeb.Layouts` with a minimal dark layout:
+- [x] Replace the current app layout in `EstratosWeb.Layouts` with a minimal dark layout:
   - Full viewport height (`h-screen`), dark background
   - A top navbar (fixed or sticky)
   - A main content area that fills the remaining space
   - Remove all Phoenix default branding (logo, links, hero)
-- [ ] Remove the default home page template and `PageController` (replaced by LiveView)
-- [ ] Keep the existing daisyUI dark theme — it's already configured in `app.css`
-- [ ] Set dark theme as the default (remove theme toggle for now — the app is dark mode only in MVP)
+- [x] Remove the default home page template and `PageController` (replaced by LiveView)
+- [x] Keep the existing daisyUI dark theme — it's already configured in `app.css`
+- [x] Set dark theme as the default (remove theme toggle for now — the app is dark mode only in MVP)
 
 ---
 
 ## Section 4 — Map LiveView: Upload, Preview, Save and Render [sonnet]
 
-- [ ] Create `EstratosWeb.MapLive` as the root route (`/`)
-- [ ] Update the router: replace `PageController` route with `live "/", MapLive`
-- [ ] Implement the LiveView with two states:
+- [x] Create `EstratosWeb.MapLive` as the root route (`/`)
+- [x] Update the router: replace `PageController` route with `live "/", MapLive`
+- [x] Implement the LiveView with two states:
 
 **State A — No map loaded:**
 - Dark empty canvas

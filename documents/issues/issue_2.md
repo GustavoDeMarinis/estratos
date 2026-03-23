@@ -95,9 +95,9 @@ Implement the most basic functional loop of the app: the user can upload a map i
 
 ## Section 5 — Capture Image Dimensions [haiku]
 
-- [ ] Use a client-side JS hook to read the image's natural width/height after it loads
-- [ ] Push the dimensions to the server via `pushEvent`
-- [ ] Store them in the Map record on save
+- [x] Use a client-side JS hook to read the image's natural width/height after it loads
+- [x] Push the dimensions to the server via `pushEvent`
+- [x] Store them in the Map record on save
 
 > This is lightweight — the browser already knows the dimensions once the image loads. No server-side image library needed.
 

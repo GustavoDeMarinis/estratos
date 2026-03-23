@@ -105,11 +105,11 @@ defmodule EstratosWeb.MapLive do
       _ ->
         result =
           consume_uploaded_entries(socket, :map_image, fn %{path: tmp_path}, entry ->
-            MapStorage.store(tmp_path, entry.client_name)
+            {:ok, MapStorage.store(tmp_path, entry.client_name)}
           end)
 
         case result do
-          [image_path] when is_binary(image_path) ->
+          [{:ok, image_path}] when is_binary(image_path) ->
             {width, height} = socket.assigns.image_dimensions || {nil, nil}
 
             {:ok, map} =

@@ -57,6 +57,7 @@ Improve the map viewing experience with two focused enhancements: (1) make the m
 
 ## Section 3 — Smoke Test [sonnet]
 
+
 - [x] `make up` → app boots, map loads at `localhost:4000`
 - [x] Scroll wheel on the map → image zooms in/out smoothly, centered on cursor
 - [x] Click and drag while zoomed in → image pans
@@ -65,8 +66,6 @@ Improve the map viewing experience with two focused enhancements: (1) make the m
 - [x] Upload a new image while zoomed → zoom resets, new preview shows at 1x
 - [x] Manually rename/delete the image file in `priv/static/uploads/maps/` → refresh the page → broken image state renders with warning message
 - [x] Re-upload an image while in broken state → image renders normally
-
----
 
 ## Out of Scope
 

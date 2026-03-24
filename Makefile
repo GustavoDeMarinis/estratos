@@ -24,7 +24,7 @@ check-env:
 		echo "$(RED)✗ .env file not found$(NC)"; \
 		exit 1; \
 	fi
-	@if ! grep -q "^.env$$" .gitignore; then \
+	@if ! grep -q "^\.env" .gitignore; then \
 		echo "$(RED)✗ .env not in .gitignore$(NC)"; \
 		exit 1; \
 	fi

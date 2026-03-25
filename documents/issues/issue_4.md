@@ -38,14 +38,14 @@ Introduce the World as the root entity of the app and allow multiple maps per wo
 
 ## Section 2 — World Context Functions [sonnet]
 
-- [ ] Add to `Estratos.Worlds` context:
+- [x] Add to `Estratos.Worlds` context:
   - `get_or_create_default_world/0` — returns the single world, creating it ("My World") if none exists
   - `get_world!/1` — fetch world by ID (raises on not found)
   - `update_world/2` — update world attributes
   - `list_maps_for_world/1` — list maps belonging to a world (ordered by newest first)
   - `create_map/2` — updated to accept world association
-- [ ] Update existing `create_map/1` to require `world_id`
-- [ ] Add context tests for all new functions
+- [x] Update existing `create_map/1` to require `world_id`
+- [x] Add context tests for all new functions
 
 ---
 

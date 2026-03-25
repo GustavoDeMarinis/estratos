@@ -19,6 +19,8 @@ defmodule Estratos.Worlds do
     end
   end
 
+  def get_world!(id), do: Repo.get!(World, id)
+
   def update_world(%World{} = world, attrs) do
     world
     |> World.changeset(attrs)
@@ -27,17 +29,15 @@ defmodule Estratos.Worlds do
 
   # Maps
 
-  def list_maps do
-    Repo.all(from m in Map, order_by: [desc: m.id])
+  def list_maps_for_world(%World{} = world) do
+    Repo.all(from m in Map, where: m.world_id == ^world.id, order_by: [desc: m.id])
   end
 
-  def get_map(id) do
-    Repo.get(Map, id)
-  end
+  def get_map(id), do: Repo.get(Map, id)
 
-  def create_map(attrs) do
+  def create_map(%World{} = world, attrs) do
     %Map{}
-    |> Map.changeset(attrs)
+    |> Map.changeset(Elixir.Map.put(attrs, :world_id, world.id))
     |> Repo.insert()
   end
 

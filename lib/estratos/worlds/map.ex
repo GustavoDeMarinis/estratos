@@ -19,6 +19,6 @@ defmodule Estratos.Worlds.Map do
   def changeset(map, attrs) do
     map
     |> cast(attrs, [:name, :image_path, :image_width, :image_height, :world_id])
-    |> validate_required([:name, :image_path])
+    |> validate_required([:name, :image_path, :world_id])
   end
 end

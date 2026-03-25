@@ -6,7 +6,8 @@ defmodule EstratosWeb.MapLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    map = Worlds.list_maps() |> List.first()
+    world = Worlds.get_or_create_default_world()
+    map = Worlds.list_maps_for_world(world) |> List.first()
 
     image_broken =
       if map do
@@ -26,6 +27,7 @@ defmodule EstratosWeb.MapLive do
 
     socket =
       socket
+      |> assign(:world, world)
       |> assign(:map, map)
       |> assign(:image_broken, image_broken)
       |> assign(:image_dimensions, nil)
@@ -344,7 +346,7 @@ defmodule EstratosWeb.MapLive do
             {width, height} = socket.assigns.image_dimensions || {nil, nil}
 
             {:ok, map} =
-              Worlds.create_map(%{
+              Worlds.create_map(socket.assigns.world, %{
                 name: "Untitled Map",
                 image_path: image_path,
                 image_width: width,

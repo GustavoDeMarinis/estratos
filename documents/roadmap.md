@@ -82,38 +82,45 @@ Architectural Decisions:
 5.3) Each map within a group has its own image and its own layer configuration.
 5.4) The user can toggle between maps in a group to switch views.
 
-6) Normalized Coordinates
-6.1) Pin positions are stored as normalized float coordinates: `x` (0.0 to 1.0) and `y` (0.0 to 1.0), relative to the map image dimensions.
-6.2) On capture: `stored_x = mouse_x / container_width`, `stored_y = mouse_y / container_height`.
-6.3) On render: `pixel_x = stored_x * container_width`, `pixel_y = stored_y * container_height`.
-6.4) Pins appear in the correct relative position regardless of screen size or container dimensions.
-6.5) PostGIS remains installed but is not used in MVP. It will be activated when spatial queries or polygon zones are needed.
+6) Grid Overlay for Territorial Representation
+6.1) Instead of freeform polygons, territories and paths (countries, rivers, forests, etc.) are represented using a discrete grid overlay on the map.
+6.2) The user paints grid cells (squares or hexagons) to mark territory or trace paths.
+6.3) Each painted area is stored as an array of cell coordinates (e.g., `[[0,3], [0,4], [1,3]]`).
+6.4) Grid type (square vs hex), resolution, and rendering details are to be further designed.
+6.5) This replaces the polygon zone approach entirely — no freeform geometry needed.
+6.6) PostGIS is no longer required. Spatial representation is handled by the grid model.
 
-7) Map Scale
-7.1) Each map can optionally define a scale that maps pixel distance to real-world distance (e.g., 1px = 10 km).
-7.2) The scale is stored as a single float value: `km_per_pixel`, representing how many kilometers one pixel corresponds to at the map image's native resolution.
-7.3) On normalized coordinates: the pixel distance between two points is computed from their normalized coordinates and the map image dimensions, then multiplied by `km_per_pixel` to obtain the real-world distance.
-7.4) The scale is optional — maps without a defined scale simply cannot perform distance measurements.
-7.5) The user sets the scale by either entering the value directly or by selecting two reference points on the map and providing the known distance between them (the system calculates `km_per_pixel` from that).
+7) Normalized Coordinates
+7.1) Pin positions are stored as normalized float coordinates: `x` (0.0 to 1.0) and `y` (0.0 to 1.0), relative to the map image dimensions.
+7.2) On capture: `stored_x = mouse_x / container_width`, `stored_y = mouse_y / container_height`.
+7.3) On render: `pixel_x = stored_x * container_width`, `pixel_y = stored_y * container_height`.
+7.4) Pins appear in the correct relative position regardless of screen size or container dimensions.
 
-8) Map Image Handling
-8.1) Map images are stored locally on the filesystem, not in the cloud.
-8.2) The map image fits the map container — the container does not resize to the image.
-8.3) Low-resolution images stretch and may appear pixelated (acceptable).
-8.4) High-resolution images may be downscaled on upload (exact strategy TBD).
-8.5) If a new image has different dimensions than the previous one, pins retain their normalized coordinates. Pins that were within bounds may appear shifted; pins are never deleted automatically. A white background fills any empty space, and the user can reposition pins manually.
+8) Map Scale
+8.1) Each map can optionally define a scale that maps pixel distance to real-world distance (e.g., 1px = 10 km).
+8.2) The scale is stored as a single float value: `km_per_pixel`, representing how many kilometers one pixel corresponds to at the map image's native resolution.
+8.3) On normalized coordinates: the pixel distance between two points is computed from their normalized coordinates and the map image dimensions, then multiplied by `km_per_pixel` to obtain the real-world distance.
+8.4) The scale is optional — maps without a defined scale simply cannot perform distance measurements.
+8.5) The user sets the scale by either entering the value directly or by selecting two reference points on the map and providing the known distance between them (the system calculates `km_per_pixel` from that).
 
-9) Deletion Behavior
-9.1) Entity deletion: orphaned relationships are acceptable. Deleting a Country does NOT cascade-delete its Cities or their pins. Related records simply lose that reference.
-9.2) Map deletion: pins keep their coordinates and float unplaced. They are not deleted. Bulk deletion of pins is always an explicit user action, never a side effect.
-9.3) No soft deletes in MVP. No undo/redo.
+9) Map Image Handling
+9.1) Map images are stored locally on the filesystem, not in the cloud.
+9.2) The map image fits the map container — the container does not resize to the image.
+9.3) Low-resolution images stretch and may appear pixelated (acceptable).
+9.4) High-resolution images may be downscaled on upload (exact strategy TBD).
+9.5) If a new image has different dimensions than the previous one, pins retain their normalized coordinates. Pins that were within bounds may appear shifted; pins are never deleted automatically. A white background fills any empty space, and the user can reposition pins manually.
 
-10) Time Events — Post-MVP Design Direction
-10.1) A `TimeEvent` model will represent temporal occurrences with `valid_from` and `valid_to` dates.
-10.2) Time events reference affected entities via a join table (not an embedded array of IDs).
-10.3) The timeline acts as an additional filter — a `currentDate` field lets the user see the world at a specific point in time.
-10.4) Time events can affect entity properties conditionally (e.g., frozen rivers in winter, blocked mountain passes).
-10.5) This is NOT part of MVP but the schema must not block its future implementation.
+10) Deletion Behavior
+10.1) Entity deletion: orphaned relationships are acceptable. Deleting a Country does NOT cascade-delete its Cities or their pins. Related records simply lose that reference.
+10.2) Map deletion: pins keep their coordinates and float unplaced. They are not deleted. Bulk deletion of pins is always an explicit user action, never a side effect.
+10.3) No soft deletes in MVP. No undo/redo.
+
+11) Time Events — Post-MVP Design Direction
+11.1) A `TimeEvent` model will represent temporal occurrences with `valid_from` and `valid_to` dates.
+11.2) Time events reference affected entities via a join table (not an embedded array of IDs).
+11.3) The timeline acts as an additional filter — a `currentDate` field lets the user see the world at a specific point in time.
+11.4) Time events can affect entity properties conditionally (e.g., frozen rivers in winter, blocked mountain passes).
+11.5) This is NOT part of MVP but the schema must not block its future implementation.
 
 Non-Functional Requirements:
 
@@ -197,7 +204,7 @@ Requirements:
 5.3) Pins render at the correct relative position regardless of screen size or container dimensions.
 5.4) Pins are creatable, editable, and deletable.
 5.5) Pins must render in real time on the map.
-5.6) Polygon zones are deferred to post-MVP. Users rely on well-drawn map images for visual boundaries.
+5.6) Territorial representation uses a grid overlay (painted cells) instead of freeform polygons. See Architectural Decision 6.
 
 6) Visualization
 6.1) The frontend must render maps with active layers.
@@ -253,7 +260,7 @@ Out of Scope (MVP):
 4) World simulation.
 5) Automated rules.
 6) Entity versioning.
-7) Polygon zones.
+7) Freeform polygon zones (replaced by grid overlay — see Architectural Decision 6).
 8) User-defined entity types (use the generic Entity table instead).
 9) User-created layers.
 10) Cloud storage.

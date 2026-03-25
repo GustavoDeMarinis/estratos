@@ -17,6 +17,7 @@ defmodule EstratosWeb.MapLive do
       |> assign(:map, map)
       |> assign(:image_broken, image_broken?(map))
       |> assign(:image_dimensions, nil)
+      |> assign(:renaming, false)
       |> allow_upload(:map_image,
         accept: ~w(.jpg .jpeg .png .webp),
         max_entries: 1,
@@ -30,7 +31,7 @@ defmodule EstratosWeb.MapLive do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col h-full">
-      <.navbar uploads={@uploads} map={@map} maps={@maps} />
+      <.navbar uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} />
       <.map_viewport uploads={@uploads} map={@map} image_broken={@image_broken} />
       <Layouts.flash_group flash={@flash} />
     </div>
@@ -43,8 +44,47 @@ defmodule EstratosWeb.MapLive do
       <div class="flex-none">
         <span class="font-semibold tracking-wide text-base-content">Estratos</span>
       </div>
-      <div class="flex-1">
-        <.map_selector map={@map} maps={@maps} />
+      <div class="flex-1 flex items-center gap-1">
+        <%= if @renaming do %>
+          <form id="rename-form" phx-submit="rename_map" class="flex items-center gap-1">
+            <input
+              type="text"
+              name="name"
+              value={@map.name}
+              class="input input-sm w-48"
+              autofocus
+              phx-blur={JS.dispatch("submit", to: "#rename-form")}
+            />
+            <button
+              type="button"
+              phx-click="cancel_rename"
+              class="btn btn-sm btn-ghost btn-square"
+            >
+              <.icon name="hero-x-mark-micro" class="w-4 h-4" />
+            </button>
+          </form>
+        <% else %>
+          <.map_selector map={@map} maps={@maps} />
+          <%= if @map do %>
+            <button
+              type="button"
+              phx-click="start_rename"
+              class="btn btn-sm btn-ghost btn-square"
+              title="Rename map"
+            >
+              <.icon name="hero-pencil-micro" class="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              phx-click="delete_map"
+              phx-confirm={"Delete \"#{@map.name}\"? This cannot be undone."}
+              class="btn btn-sm btn-ghost btn-square text-error"
+              title="Delete map"
+            >
+              <.icon name="hero-trash-micro" class="w-4 h-4" />
+            </button>
+          <% end %>
+        <% end %>
       </div>
       <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form">
         <label for={@uploads.map_image.ref} class="btn btn-sm btn-outline cursor-pointer">
@@ -450,6 +490,51 @@ defmodule EstratosWeb.MapLive do
             {:noreply, put_flash(socket, :error, "Failed to save image")}
         end
     end
+  end
+
+  @impl true
+  def handle_event("start_rename", _params, socket) do
+    {:noreply, assign(socket, :renaming, true)}
+  end
+
+  @impl true
+  def handle_event("cancel_rename", _params, socket) do
+    {:noreply, assign(socket, :renaming, false)}
+  end
+
+  @impl true
+  def handle_event("rename_map", %{"name" => name}, socket) do
+    name = String.trim(name)
+
+    if name != "" do
+      {:ok, map} = Worlds.update_map(socket.assigns.map, %{name: name})
+      maps = Worlds.list_maps_for_world(socket.assigns.world)
+
+      {:noreply,
+       socket
+       |> assign(:map, map)
+       |> assign(:maps, maps)
+       |> assign(:renaming, false)}
+    else
+      {:noreply, assign(socket, :renaming, false)}
+    end
+  end
+
+  @impl true
+  def handle_event("delete_map", _params, socket) do
+    map = socket.assigns.map
+    MapStorage.delete(map.image_path)
+    Worlds.delete_map(map)
+
+    maps = Worlds.list_maps_for_world(socket.assigns.world)
+    next_map = List.first(maps)
+
+    {:noreply,
+     socket
+     |> assign(:map, next_map)
+     |> assign(:maps, maps)
+     |> assign(:image_broken, image_broken?(next_map))
+     |> assign(:renaming, false)}
   end
 
   @impl true

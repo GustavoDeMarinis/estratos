@@ -67,12 +67,12 @@ Introduce the World as the root entity of the app and allow multiple maps per wo
 
 ## Section 4 — Map Management [sonnet]
 
-- [ ] Allow renaming a map (inline edit or modal)
-- [ ] Allow deleting a map:
+- [x] Allow renaming a map (inline edit or modal)
+- [x] Allow deleting a map:
   - Confirmation prompt before delete
   - Deletes the DB record and the image file from disk
   - After deletion, switch to the next available map (or empty state if none)
-- [ ] After saving a new map, it becomes the active map in the selector
+- [x] After saving a new map, it becomes the active map in the selector
 
 ---
 

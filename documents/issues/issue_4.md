@@ -18,7 +18,7 @@ Introduce the World as the root entity of the app and allow multiple maps per wo
 
 ## Section 1 — World Schema and Migration [sonnet]
 
-- [ ] Create the `Estratos.Worlds.World` schema:
+- [x] Create the `Estratos.Worlds.World` schema:
 
 | Field | Type | Notes |
 |---|---|---|
@@ -27,12 +27,12 @@ Introduce the World as the root entity of the app and allow multiple maps per wo
 | `description` | `:string` | Optional. Brief description |
 | `timestamps` | | `inserted_at`, `updated_at` |
 
-- [ ] Create the migration for `worlds` table
-- [ ] Add `world_id` foreign key to `maps` table (new migration)
-- [ ] Update `Map` schema: `belongs_to :world, World`
-- [ ] Update `World` schema: `has_many :maps, Map`
-- [ ] Changeset validates: `name` required
-- [ ] Seed a default world on first boot if none exists (or auto-create on first visit)
+- [x] Create the migration for `worlds` table
+- [x] Add `world_id` foreign key to `maps` table (new migration)
+- [x] Update `Map` schema: `belongs_to :world, World`
+- [x] Update `World` schema: `has_many :maps, Map`
+- [x] Changeset validates: `name` required
+- [x] Seed a default world on first boot if none exists (or auto-create on first visit)
 
 ---
 

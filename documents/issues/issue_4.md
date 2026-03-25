@@ -78,9 +78,9 @@ Introduce the World as the root entity of the app and allow multiple maps per wo
 
 ## Section 5 — World Header [sonnet]
 
-- [ ] Display the world name in the navbar or a header area
-- [ ] Allow editing the world name (inline edit)
-- [ ] Allow editing the world description (optional — could be a small expandable section or tooltip)
+- [x] Display the world name in the navbar or a header area
+- [x] Allow editing the world name (inline edit)
+- [x] Allow editing the world description (optional — could be a small expandable section or tooltip)
 
 ---
 

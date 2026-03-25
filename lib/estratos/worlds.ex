@@ -30,7 +30,7 @@ defmodule Estratos.Worlds do
   # Maps
 
   def list_maps_for_world(%World{} = world) do
-    Repo.all(from m in Map, where: m.world_id == ^world.id, order_by: [desc: m.id])
+    Repo.all(from m in Map, where: m.world_id == ^world.id, order_by: [asc: m.id])
   end
 
   def get_map(id), do: Repo.get(Map, id)

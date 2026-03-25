@@ -18,6 +18,8 @@ defmodule EstratosWeb.MapLive do
       |> assign(:image_broken, image_broken?(map))
       |> assign(:image_dimensions, nil)
       |> assign(:renaming, false)
+      |> assign(:renaming_world, false)
+      |> assign(:naming_new_map, nil)
       |> allow_upload(:map_image,
         accept: ~w(.jpg .jpeg .png .webp),
         max_entries: 1,
@@ -27,64 +29,38 @@ defmodule EstratosWeb.MapLive do
     {:ok, socket}
   end
 
+  # ---------------------------------------------------------------------------
+  # Render
+  # ---------------------------------------------------------------------------
+
   @impl true
   def render(assigns) do
     ~H"""
     <div class="flex flex-col h-full">
-      <.navbar uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} />
-      <.map_viewport uploads={@uploads} map={@map} image_broken={@image_broken} />
+      <.navbar world={@world} uploads={@uploads} />
+      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} />
       <Layouts.flash_group flash={@flash} />
+      <.world_modal :if={@renaming_world} world={@world} />
+      <.name_map_modal :if={@naming_new_map} />
     </div>
     """
   end
 
+  # ---------------------------------------------------------------------------
+  # Components
+  # ---------------------------------------------------------------------------
+
   defp navbar(assigns) do
     ~H"""
-    <header class="navbar bg-base-200 border-b border-base-300 px-4 shrink-0 gap-3">
-      <div class="flex-none">
-        <span class="font-semibold tracking-wide text-base-content">Estratos</span>
-      </div>
-      <div class="flex-1 flex items-center gap-1">
-        <%= if @renaming do %>
-          <form id="rename-form" phx-submit="rename_map" class="flex items-center gap-1">
-            <input
-              type="text"
-              name="name"
-              value={@map.name}
-              class="input input-sm w-48"
-              autofocus
-              phx-blur={JS.dispatch("submit", to: "#rename-form")}
-            />
-            <button
-              type="button"
-              phx-click="cancel_rename"
-              class="btn btn-sm btn-ghost btn-square"
-            >
-              <.icon name="hero-x-mark-micro" class="w-4 h-4" />
-            </button>
-          </form>
-        <% else %>
-          <.map_selector map={@map} maps={@maps} />
-          <%= if @map do %>
-            <button
-              type="button"
-              phx-click="start_rename"
-              class="btn btn-sm btn-ghost btn-square"
-              title="Rename map"
-            >
-              <.icon name="hero-pencil-micro" class="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              phx-click="delete_map"
-              phx-confirm={"Delete \"#{@map.name}\"? This cannot be undone."}
-              class="btn btn-sm btn-ghost btn-square text-error"
-              title="Delete map"
-            >
-              <.icon name="hero-trash-micro" class="w-4 h-4" />
-            </button>
-          <% end %>
-        <% end %>
+    <header class="navbar bg-base-200 px-4 shrink-0 gap-3 min-h-0 h-12">
+      <div class="flex-1 flex items-center gap-2">
+        <span
+          class="font-semibold tracking-wide text-base-content cursor-pointer hover:text-primary transition-colors"
+          title={@world.description || "Click to edit world"}
+          phx-click="start_rename_world"
+        >
+          <%= @world.name %>
+        </span>
       </div>
       <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form">
         <label for={@uploads.map_image.ref} class="btn btn-sm btn-outline cursor-pointer">
@@ -103,42 +79,144 @@ defmodule EstratosWeb.MapLive do
     """
   end
 
-  defp map_selector(assigns) do
+  defp map_tabs(assigns) do
     ~H"""
-    <div class="dropdown">
-      <div tabindex="0" role="button" class="btn btn-sm btn-ghost gap-1 max-w-xs">
-        <span class="truncate"><%= if @map, do: @map.name, else: "New Map" %></span>
-        <.icon name="hero-chevron-down-micro" class="w-3 h-3 shrink-0" />
-      </div>
-      <ul
-        tabindex="0"
-        class="dropdown-content menu bg-base-200 border border-base-300 rounded-box shadow-lg z-10 w-52 p-1 mt-1"
+    <div class="absolute top-0 left-0 flex gap-1 px-2 z-10">
+      <%= for m <- @maps do %>
+        <button
+          type="button"
+          phx-click="select_map"
+          phx-value-id={m.id}
+          class={[
+            "px-3 pb-1.5 pt-1 bg-base-200 rounded-b-lg text-sm shadow-md transition-all",
+            if(@map && @map.id == m.id,
+              do: "pb-2 text-base-content",
+              else: "text-base-content/60 hover:text-base-content"
+            )
+          ]}
+        >
+          <span class="truncate max-w-[10rem]"><%= m.name %></span>
+        </button>
+      <% end %>
+      <button
+        type="button"
+        phx-click="new_map"
+        class={[
+          "flex items-center gap-1 px-3 rounded-b-lg text-sm bg-base-200 shadow-md transition-all",
+          if(@map == nil,
+            do: "pb-2 pt-1 text-base-content",
+            else: "pb-1.5 pt-1 text-base-content/60 hover:text-base-content"
+          )
+        ]}
       >
-        <%= for m <- @maps do %>
-          <li>
-            <button
-              type="button"
-              phx-click="select_map"
-              phx-value-id={m.id}
-              class={["w-full text-left", @map && @map.id == m.id && "active"]}
-            >
-              <%= if @map && @map.id == m.id do %>
-                <.icon name="hero-check-micro" class="w-3 h-3" />
-              <% end %>
-              <span class="truncate"><%= m.name %></span>
-            </button>
-          </li>
-        <% end %>
-        <%= if @maps != [] do %>
-          <li class="menu-title border-t border-base-300 mt-1 pt-1"></li>
-        <% end %>
-        <li>
-          <button type="button" phx-click="new_map" class="w-full text-left gap-1">
-            <.icon name="hero-plus-micro" class="w-3 h-3" />
-            New Map
-          </button>
-        </li>
-      </ul>
+        <.icon name="hero-plus-micro" class="w-3.5 h-3.5" />
+        <span>New Map</span>
+      </button>
+    </div>
+    """
+  end
+
+  defp map_actions(assigns) do
+    ~H"""
+    <div class="absolute bottom-4 left-4 z-10 flex gap-1">
+      <%= if @renaming do %>
+        <form id="rename-form" phx-submit="rename_map" class="flex items-center gap-1">
+          <input
+            type="text"
+            name="name"
+            value={@map.name}
+            class="input input-sm bg-base-200 w-48"
+            autofocus
+          />
+          <button type="submit" class="btn btn-sm btn-primary">Save</button>
+          <button type="button" phx-click="cancel_rename" class="btn btn-sm">Cancel</button>
+        </form>
+      <% else %>
+        <button
+          type="button"
+          phx-click="start_rename"
+          class="btn btn-sm bg-base-200 border-base-content/20 hover:bg-base-100 shadow-xl"
+          title="Rename map"
+        >
+          <.icon name="hero-pencil-square-micro" class="w-4 h-4" />
+          Rename
+        </button>
+        <button
+          type="button"
+          phx-click="delete_map"
+          phx-confirm={"Delete \"#{@map.name}\"? This cannot be undone."}
+          class="btn btn-sm bg-base-200 border-base-content/20 hover:bg-error hover:text-error-content shadow-xl"
+          title="Delete map"
+        >
+          <.icon name="hero-trash-micro" class="w-4 h-4" />
+          Delete
+        </button>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp world_modal(assigns) do
+    ~H"""
+    <div class="modal modal-open modal-middle">
+      <div class="modal-box max-w-sm">
+        <h3 class="font-bold text-lg">Edit World</h3>
+        <form phx-submit="rename_world" class="flex flex-col gap-4 mt-4">
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Name</span></div>
+            <input
+              type="text"
+              name="name"
+              value={@world.name}
+              class="input input-bordered w-full"
+              autofocus
+              required
+            />
+          </label>
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Description</span></div>
+            <textarea
+              name="description"
+              class="textarea textarea-bordered w-full"
+              rows="3"
+              placeholder="A brief description of your world"
+            ><%= @world.description %></textarea>
+          </label>
+          <div class="modal-action">
+            <button type="button" phx-click="cancel_rename_world" class="btn">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
+      <div class="modal-backdrop" phx-click="cancel_rename_world"></div>
+    </div>
+    """
+  end
+
+  defp name_map_modal(assigns) do
+    ~H"""
+    <div class="modal modal-open modal-middle">
+      <div class="modal-box max-w-sm">
+        <h3 class="font-bold text-lg">Name your map</h3>
+        <form phx-submit="confirm_new_map" class="flex flex-col gap-4 mt-4">
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Map name</span></div>
+            <input
+              type="text"
+              name="name"
+              value="Untitled Map"
+              class="input input-bordered w-full"
+              autofocus
+              required
+            />
+          </label>
+          <div class="modal-action">
+            <button type="button" phx-click="cancel_new_map" class="btn">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create</button>
+          </div>
+        </form>
+      </div>
+      <div class="modal-backdrop" phx-click="cancel_new_map"></div>
     </div>
     """
   end
@@ -150,6 +228,8 @@ defmodule EstratosWeb.MapLive do
       phx-hook=".MapContainer"
       class="flex-1 overflow-hidden bg-base-300 select-none relative"
     >
+      <.map_tabs maps={@maps} map={@map} renaming={@renaming} />
+      <.map_actions :if={@map} map={@map} renaming={@renaming} />
       <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} />
       <.zoom_controls />
     </main>
@@ -426,7 +506,8 @@ defmodule EstratosWeb.MapLive do
     {:noreply,
      socket
      |> assign(:map, map)
-     |> assign(:image_broken, image_broken?(map))}
+     |> assign(:image_broken, image_broken?(map))
+     |> assign(:renaming, false)}
   end
 
   @impl true
@@ -434,7 +515,8 @@ defmodule EstratosWeb.MapLive do
     {:noreply,
      socket
      |> assign(:map, nil)
-     |> assign(:image_broken, false)}
+     |> assign(:image_broken, false)
+     |> assign(:renaming, false)}
   end
 
   @impl true
@@ -456,16 +538,11 @@ defmodule EstratosWeb.MapLive do
             socket =
               case socket.assigns.map do
                 nil ->
-                  {:ok, map} =
-                    Worlds.create_map(socket.assigns.world, %{
-                      name: "Untitled Map",
-                      image_path: image_path,
-                      image_width: width,
-                      image_height: height
-                    })
-
-                  maps = Worlds.list_maps_for_world(socket.assigns.world)
-                  socket |> assign(:map, map) |> assign(:maps, maps)
+                  assign(socket, :naming_new_map, %{
+                    image_path: image_path,
+                    image_width: width,
+                    image_height: height
+                  })
 
                 current_map ->
                   MapStorage.delete(current_map.image_path)
@@ -491,6 +568,71 @@ defmodule EstratosWeb.MapLive do
         end
     end
   end
+
+  # New map naming
+
+  @impl true
+  def handle_event("confirm_new_map", %{"name" => name}, socket) do
+    name = String.trim(name)
+    name = if name == "", do: "Untitled Map", else: name
+    pending = socket.assigns.naming_new_map
+
+    {:ok, map} =
+      Worlds.create_map(socket.assigns.world, %{
+        name: name,
+        image_path: pending.image_path,
+        image_width: pending.image_width,
+        image_height: pending.image_height
+      })
+
+    maps = Worlds.list_maps_for_world(socket.assigns.world)
+
+    {:noreply,
+     socket
+     |> assign(:map, map)
+     |> assign(:maps, maps)
+     |> assign(:naming_new_map, nil)
+     |> assign(:image_broken, false)}
+  end
+
+  @impl true
+  def handle_event("cancel_new_map", _params, socket) do
+    pending = socket.assigns.naming_new_map
+    if pending, do: MapStorage.delete(pending.image_path)
+
+    {:noreply, assign(socket, :naming_new_map, nil)}
+  end
+
+  # World editing
+
+  @impl true
+  def handle_event("start_rename_world", _params, socket) do
+    {:noreply, assign(socket, :renaming_world, true)}
+  end
+
+  @impl true
+  def handle_event("cancel_rename_world", _params, socket) do
+    {:noreply, assign(socket, :renaming_world, false)}
+  end
+
+  @impl true
+  def handle_event("rename_world", %{"name" => name, "description" => description}, socket) do
+    name = String.trim(name)
+
+    if name != "" do
+      {:ok, world} =
+        Worlds.update_world(socket.assigns.world, %{name: name, description: description})
+
+      {:noreply,
+       socket
+       |> assign(:world, world)
+       |> assign(:renaming_world, false)}
+    else
+      {:noreply, assign(socket, :renaming_world, false)}
+    end
+  end
+
+  # Map renaming
 
   @impl true
   def handle_event("start_rename", _params, socket) do
@@ -520,6 +662,8 @@ defmodule EstratosWeb.MapLive do
     end
   end
 
+  # Map deletion
+
   @impl true
   def handle_event("delete_map", _params, socket) do
     map = socket.assigns.map
@@ -536,6 +680,8 @@ defmodule EstratosWeb.MapLive do
      |> assign(:image_broken, image_broken?(next_map))
      |> assign(:renaming, false)}
   end
+
+  # Image events
 
   @impl true
   def handle_event("image_dimensions", %{"width" => width, "height" => height}, socket) do

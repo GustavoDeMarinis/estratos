@@ -51,17 +51,17 @@ Introduce the World as the root entity of the app and allow multiple maps per wo
 
 ## Section 3 — Map Selector UI [sonnet]
 
-- [ ] Add a map selector to the navbar (dropdown or horizontal tab bar):
+- [x] Add a map selector to the navbar (dropdown or horizontal tab bar):
   - Shows all maps for the current world
   - Highlights the currently active map
   - Clicking a map name switches the view to that map
-- [ ] Add a "New Map" action in the selector:
+- [x] Add a "New Map" action in the selector:
   - Clicking it enters the empty/upload state for a new map
   - Upload + Save creates a new map associated with the world
-- [ ] The current "Upload" button behavior changes:
+- [x] The current "Upload" button behavior changes:
   - If no map is selected (new map flow): works as before
   - If a map is already selected: replaces that map's image
-- [ ] Show the map name in the navbar (editable inline or via a simple input)
+- [x] Show the map name in the navbar (editable inline or via a simple input)
 
 ---
 

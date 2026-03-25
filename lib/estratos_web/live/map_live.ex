@@ -7,29 +7,15 @@ defmodule EstratosWeb.MapLive do
   @impl true
   def mount(_params, _session, socket) do
     world = Worlds.get_or_create_default_world()
-    map = Worlds.list_maps_for_world(world) |> List.first()
-
-    image_broken =
-      if map do
-        disk_path =
-          Path.join([
-            :code.priv_dir(:estratos),
-            "static",
-            "uploads",
-            "maps",
-            Path.basename(map.image_path)
-          ])
-
-        not File.exists?(disk_path)
-      else
-        false
-      end
+    maps = Worlds.list_maps_for_world(world)
+    map = List.first(maps)
 
     socket =
       socket
       |> assign(:world, world)
+      |> assign(:maps, maps)
       |> assign(:map, map)
-      |> assign(:image_broken, image_broken)
+      |> assign(:image_broken, image_broken?(map))
       |> assign(:image_dimensions, nil)
       |> allow_upload(:map_image,
         accept: ~w(.jpg .jpeg .png .webp),
@@ -44,7 +30,7 @@ defmodule EstratosWeb.MapLive do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col h-full">
-      <.navbar uploads={@uploads} />
+      <.navbar uploads={@uploads} map={@map} maps={@maps} />
       <.map_viewport uploads={@uploads} map={@map} image_broken={@image_broken} />
       <Layouts.flash_group flash={@flash} />
     </div>
@@ -53,9 +39,12 @@ defmodule EstratosWeb.MapLive do
 
   defp navbar(assigns) do
     ~H"""
-    <header class="navbar bg-base-200 border-b border-base-300 px-4 shrink-0">
-      <div class="flex-1">
+    <header class="navbar bg-base-200 border-b border-base-300 px-4 shrink-0 gap-3">
+      <div class="flex-none">
         <span class="font-semibold tracking-wide text-base-content">Estratos</span>
+      </div>
+      <div class="flex-1">
+        <.map_selector map={@map} maps={@maps} />
       </div>
       <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form">
         <label for={@uploads.map_image.ref} class="btn btn-sm btn-outline cursor-pointer">
@@ -71,6 +60,46 @@ defmodule EstratosWeb.MapLive do
         </button>
       </form>
     </header>
+    """
+  end
+
+  defp map_selector(assigns) do
+    ~H"""
+    <div class="dropdown">
+      <div tabindex="0" role="button" class="btn btn-sm btn-ghost gap-1 max-w-xs">
+        <span class="truncate"><%= if @map, do: @map.name, else: "New Map" %></span>
+        <.icon name="hero-chevron-down-micro" class="w-3 h-3 shrink-0" />
+      </div>
+      <ul
+        tabindex="0"
+        class="dropdown-content menu bg-base-200 border border-base-300 rounded-box shadow-lg z-10 w-52 p-1 mt-1"
+      >
+        <%= for m <- @maps do %>
+          <li>
+            <button
+              type="button"
+              phx-click="select_map"
+              phx-value-id={m.id}
+              class={["w-full text-left", @map && @map.id == m.id && "active"]}
+            >
+              <%= if @map && @map.id == m.id do %>
+                <.icon name="hero-check-micro" class="w-3 h-3" />
+              <% end %>
+              <span class="truncate"><%= m.name %></span>
+            </button>
+          </li>
+        <% end %>
+        <%= if @maps != [] do %>
+          <li class="menu-title border-t border-base-300 mt-1 pt-1"></li>
+        <% end %>
+        <li>
+          <button type="button" phx-click="new_map" class="w-full text-left gap-1">
+            <.icon name="hero-plus-micro" class="w-3 h-3" />
+            New Map
+          </button>
+        </li>
+      </ul>
+    </div>
     """
   end
 
@@ -322,16 +351,55 @@ defmodule EstratosWeb.MapLive do
     """
   end
 
+  # ---------------------------------------------------------------------------
+  # Helpers
+  # ---------------------------------------------------------------------------
+
+  defp image_broken?(nil), do: false
+
+  defp image_broken?(map) do
+    disk_path =
+      Path.join([
+        :code.priv_dir(:estratos),
+        "static",
+        "uploads",
+        "maps",
+        Path.basename(map.image_path)
+      ])
+
+    not File.exists?(disk_path)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Events
+  # ---------------------------------------------------------------------------
+
   @impl true
   def handle_event("validate", _params, socket) do
     {:noreply, socket}
   end
 
   @impl true
-  def handle_event("save", _params, socket) do
-    entries = socket.assigns.uploads.map_image.entries
+  def handle_event("select_map", %{"id" => id}, socket) do
+    map = Worlds.get_map(String.to_integer(id))
 
-    case entries do
+    {:noreply,
+     socket
+     |> assign(:map, map)
+     |> assign(:image_broken, image_broken?(map))}
+  end
+
+  @impl true
+  def handle_event("new_map", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:map, nil)
+     |> assign(:image_broken, false)}
+  end
+
+  @impl true
+  def handle_event("save", _params, socket) do
+    case socket.assigns.uploads.map_image.entries do
       [] ->
         {:noreply, socket}
 
@@ -345,17 +413,36 @@ defmodule EstratosWeb.MapLive do
           [{:ok, image_path}] when is_binary(image_path) ->
             {width, height} = socket.assigns.image_dimensions || {nil, nil}
 
-            {:ok, map} =
-              Worlds.create_map(socket.assigns.world, %{
-                name: "Untitled Map",
-                image_path: image_path,
-                image_width: width,
-                image_height: height
-              })
+            socket =
+              case socket.assigns.map do
+                nil ->
+                  {:ok, map} =
+                    Worlds.create_map(socket.assigns.world, %{
+                      name: "Untitled Map",
+                      image_path: image_path,
+                      image_width: width,
+                      image_height: height
+                    })
+
+                  maps = Worlds.list_maps_for_world(socket.assigns.world)
+                  socket |> assign(:map, map) |> assign(:maps, maps)
+
+                current_map ->
+                  MapStorage.delete(current_map.image_path)
+
+                  {:ok, map} =
+                    Worlds.update_map(current_map, %{
+                      image_path: image_path,
+                      image_width: width,
+                      image_height: height
+                    })
+
+                  maps = Worlds.list_maps_for_world(socket.assigns.world)
+                  socket |> assign(:map, map) |> assign(:maps, maps)
+              end
 
             {:noreply,
              socket
-             |> assign(:map, map)
              |> assign(:image_broken, false)
              |> assign(:image_dimensions, nil)}
 

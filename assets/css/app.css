@@ -103,3 +103,8 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* Prevent DaisyUI modal from shifting layout */
+html {
+  scrollbar-gutter: auto;
+}

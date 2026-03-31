@@ -20,9 +20,12 @@ defmodule EstratosWeb.MapLive do
       |> assign(:renaming, false)
       |> assign(:renaming_world, false)
       |> assign(:naming_new_map, nil)
+      |> assign(:pending_image, nil)
+      # max_entries: 2 allows selecting a replacement image while keeping the
+      # current preview — validate cancels the older entry once the new one arrives.
       |> allow_upload(:map_image,
         accept: ~w(.jpg .jpeg .png .webp),
-        max_entries: 1,
+        max_entries: 2,
         max_file_size: 50_000_000
       )
 
@@ -37,8 +40,8 @@ defmodule EstratosWeb.MapLive do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col h-full">
-      <.navbar world={@world} uploads={@uploads} />
-      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} />
+      <.navbar world={@world} uploads={@uploads} pending_image={@pending_image} />
+      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} />
       <Layouts.flash_group flash={@flash} />
       <.world_modal :if={@renaming_world} world={@world} />
       <.name_map_modal :if={@naming_new_map} />
@@ -62,19 +65,37 @@ defmodule EstratosWeb.MapLive do
           <%= @world.name %>
         </span>
       </div>
-      <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form">
-        <label for={@uploads.map_image.ref} class="btn btn-sm btn-outline cursor-pointer">
+      <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form" phx-hook=".UploadForm">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline cursor-pointer"
+          phx-click="reupload"
+        >
           Upload
-        </label>
+        </button>
         <.live_file_input upload={@uploads.map_image} class="hidden" />
         <button
           type="submit"
           class="btn btn-sm btn-primary"
-          disabled={@uploads.map_image.entries == []}
+          disabled={@uploads.map_image.entries == [] and is_nil(@pending_image)}
         >
           Save
         </button>
       </form>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".UploadForm">
+        export default {
+          mounted() {
+            this.handleEvent("trigger-upload", ({ id }) => {
+              const inp = document.getElementById(id)
+              if (inp) {
+                inp.disabled = false
+                inp.value = ""
+                inp.click()
+              }
+            })
+          }
+        }
+      </script>
     </header>
     """
   end
@@ -230,7 +251,7 @@ defmodule EstratosWeb.MapLive do
     >
       <.map_tabs maps={@maps} map={@map} renaming={@renaming} />
       <.map_actions :if={@map} map={@map} renaming={@renaming} />
-      <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} />
+      <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} pending_image={@pending_image} />
       <.zoom_controls />
     </main>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".MapContainer">
@@ -383,35 +404,45 @@ defmodule EstratosWeb.MapLive do
 
   defp map_image(assigns) do
     ~H"""
-    <%= if entry = List.first(@uploads.map_image.entries) do %>
+    <%= if entry = List.last(@uploads.map_image.entries) do %>
       <.live_img_preview
         entry={entry}
         class="w-full h-full object-contain"
         phx-hook=".MapImage"
-        id="map-preview"
+        id={"map-preview-#{entry.ref}"}
         draggable="false"
       />
     <% else %>
-      <%= if @map do %>
-        <%= if @image_broken do %>
-          <div class="flex flex-col items-center justify-center h-full gap-2">
-            <.icon name="hero-exclamation-triangle" class="w-8 h-8 text-warning" />
-            <p class="text-base-content text-sm font-medium">Map image not found</p>
-            <p class="text-base-content/40 text-sm"><%= @map.name %></p>
-          </div>
-        <% else %>
-          <img
-            src={@map.image_path}
-            class="w-full h-full object-contain"
-            id="map-image"
-            draggable="false"
-            phx-hook=".MapImage"
-          />
-        <% end %>
+      <%= if @pending_image do %>
+        <img
+          src={@pending_image}
+          class="w-full h-full object-contain"
+          id="map-pending-image"
+          draggable="false"
+          phx-hook=".MapImage"
+        />
       <% else %>
-        <div class="flex items-center justify-center h-full">
-          <p class="text-base-content/40 text-sm">Upload a map image to get started</p>
-        </div>
+        <%= if @map do %>
+          <%= if @image_broken do %>
+            <div class="flex flex-col items-center justify-center h-full gap-2">
+              <.icon name="hero-exclamation-triangle" class="w-8 h-8 text-warning" />
+              <p class="text-base-content text-sm font-medium">Map image not found</p>
+              <p class="text-base-content/40 text-sm"><%= @map.name %></p>
+            </div>
+          <% else %>
+            <img
+              src={@map.image_path}
+              class="w-full h-full object-contain"
+              id="map-image"
+              draggable="false"
+              phx-hook=".MapImage"
+            />
+          <% end %>
+        <% else %>
+          <div class="flex items-center justify-center h-full">
+            <p class="text-base-content/40 text-sm">Upload a map image to get started</p>
+          </div>
+        <% end %>
       <% end %>
     <% end %>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".MapImage">
@@ -475,6 +506,23 @@ defmodule EstratosWeb.MapLive do
   # Helpers
   # ---------------------------------------------------------------------------
 
+  defp clear_pending(socket) do
+    socket =
+      socket.assigns.uploads.map_image.entries
+      |> Enum.reduce(socket, fn entry, sock ->
+        cancel_upload(sock, :map_image, entry.ref)
+      end)
+
+    if socket.assigns.pending_image do
+      MapStorage.delete(socket.assigns.pending_image)
+    end
+
+    socket
+    |> assign(:pending_image, nil)
+    |> assign(:naming_new_map, nil)
+    |> assign(:image_dimensions, nil)
+  end
+
   defp image_broken?(nil), do: false
 
   defp image_broken?(map) do
@@ -496,7 +544,25 @@ defmodule EstratosWeb.MapLive do
 
   @impl true
   def handle_event("validate", _params, socket) do
+    entries = socket.assigns.uploads.map_image.entries
+
+    socket =
+      if length(entries) > 1 do
+        entries
+        |> List.delete_at(-1)
+        |> Enum.reduce(socket, fn entry, sock ->
+          cancel_upload(sock, :map_image, entry.ref)
+        end)
+      else
+        socket
+      end
+
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("reupload", _params, socket) do
+    {:noreply, push_event(socket, "trigger-upload", %{id: socket.assigns.uploads.map_image.ref})}
   end
 
   @impl true
@@ -505,6 +571,7 @@ defmodule EstratosWeb.MapLive do
 
     {:noreply,
      socket
+     |> clear_pending()
      |> assign(:map, map)
      |> assign(:image_broken, image_broken?(map))
      |> assign(:renaming, false)}
@@ -514,6 +581,7 @@ defmodule EstratosWeb.MapLive do
   def handle_event("new_map", _params, socket) do
     {:noreply,
      socket
+     |> clear_pending()
      |> assign(:map, nil)
      |> assign(:image_broken, false)
      |> assign(:renaming, false)}
@@ -522,6 +590,16 @@ defmodule EstratosWeb.MapLive do
   @impl true
   def handle_event("save", _params, socket) do
     case socket.assigns.uploads.map_image.entries do
+      [] when socket.assigns.pending_image != nil ->
+        {w, h} = socket.assigns.image_dimensions || {nil, nil}
+
+        {:noreply,
+         assign(socket, :naming_new_map, %{
+           image_path: socket.assigns.pending_image,
+           image_width: w,
+           image_height: h
+         })}
+
       [] ->
         {:noreply, socket}
 
@@ -535,14 +613,21 @@ defmodule EstratosWeb.MapLive do
           [{:ok, image_path}] when is_binary(image_path) ->
             {width, height} = socket.assigns.image_dimensions || {nil, nil}
 
+            # Clean up previous pending image if replacing before save
+            if socket.assigns.pending_image do
+              MapStorage.delete(socket.assigns.pending_image)
+            end
+
             socket =
               case socket.assigns.map do
                 nil ->
-                  assign(socket, :naming_new_map, %{
+                  socket
+                  |> assign(:naming_new_map, %{
                     image_path: image_path,
                     image_width: width,
                     image_height: height
                   })
+                  |> assign(:pending_image, image_path)
 
                 current_map ->
                   MapStorage.delete(current_map.image_path)
@@ -555,7 +640,11 @@ defmodule EstratosWeb.MapLive do
                     })
 
                   maps = Worlds.list_maps_for_world(socket.assigns.world)
-                  socket |> assign(:map, map) |> assign(:maps, maps)
+
+                  socket
+                  |> assign(:map, map)
+                  |> assign(:maps, maps)
+                  |> assign(:pending_image, nil)
               end
 
             {:noreply,
@@ -592,14 +681,12 @@ defmodule EstratosWeb.MapLive do
      |> assign(:map, map)
      |> assign(:maps, maps)
      |> assign(:naming_new_map, nil)
+     |> assign(:pending_image, nil)
      |> assign(:image_broken, false)}
   end
 
   @impl true
   def handle_event("cancel_new_map", _params, socket) do
-    pending = socket.assigns.naming_new_map
-    if pending, do: MapStorage.delete(pending.image_path)
-
     {:noreply, assign(socket, :naming_new_map, nil)}
   end
 

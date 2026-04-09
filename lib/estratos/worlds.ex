@@ -3,18 +3,41 @@ defmodule Estratos.Worlds do
 
   alias Estratos.Repo
   alias Estratos.Worlds.Map
+  alias Estratos.Worlds.World
 
-  def list_maps do
-    Repo.all(from m in Map, order_by: [desc: m.id])
+  # World
+
+  def get_or_create_default_world do
+    case Repo.one(from w in World, limit: 1) do
+      nil ->
+        %World{}
+        |> World.changeset(%{name: "My World"})
+        |> Repo.insert!()
+
+      world ->
+        world
+    end
   end
 
-  def get_map(id) do
-    Repo.get(Map, id)
+  def get_world!(id), do: Repo.get!(World, id)
+
+  def update_world(%World{} = world, attrs) do
+    world
+    |> World.changeset(attrs)
+    |> Repo.update()
   end
 
-  def create_map(attrs) do
+  # Maps
+
+  def list_maps_for_world(%World{} = world) do
+    Repo.all(from m in Map, where: m.world_id == ^world.id, order_by: [asc: m.id])
+  end
+
+  def get_map(id), do: Repo.get(Map, id)
+
+  def create_map(%World{} = world, attrs) do
     %Map{}
-    |> Map.changeset(attrs)
+    |> Map.changeset(Elixir.Map.put(attrs, :world_id, world.id))
     |> Repo.insert()
   end
 

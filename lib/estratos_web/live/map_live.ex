@@ -6,69 +6,239 @@ defmodule EstratosWeb.MapLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    map = Worlds.list_maps() |> List.first()
-
-    image_broken =
-      if map do
-        disk_path =
-          Path.join([
-            :code.priv_dir(:estratos),
-            "static",
-            "uploads",
-            "maps",
-            Path.basename(map.image_path)
-          ])
-
-        not File.exists?(disk_path)
-      else
-        false
-      end
+    world = Worlds.get_or_create_default_world()
+    maps = Worlds.list_maps_for_world(world)
+    map = List.first(maps)
 
     socket =
       socket
+      |> assign(:world, world)
+      |> assign(:maps, maps)
       |> assign(:map, map)
-      |> assign(:image_broken, image_broken)
+      |> assign(:image_broken, image_broken?(map))
       |> assign(:image_dimensions, nil)
+      |> assign(:renaming, false)
+      |> assign(:renaming_world, false)
+      |> assign(:naming_new_map, nil)
+      |> assign(:pending_image, nil)
+      # max_entries: 2 allows selecting a replacement image while keeping the
+      # current preview — validate cancels the older entry once the new one arrives.
       |> allow_upload(:map_image,
         accept: ~w(.jpg .jpeg .png .webp),
-        max_entries: 1,
+        max_entries: 2,
         max_file_size: 50_000_000
       )
 
     {:ok, socket}
   end
 
+  # ---------------------------------------------------------------------------
+  # Render
+  # ---------------------------------------------------------------------------
+
   @impl true
   def render(assigns) do
     ~H"""
     <div class="flex flex-col h-full">
-      <.navbar uploads={@uploads} />
-      <.map_viewport uploads={@uploads} map={@map} image_broken={@image_broken} />
+      <.navbar world={@world} uploads={@uploads} pending_image={@pending_image} />
+      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} />
       <Layouts.flash_group flash={@flash} />
+      <.world_modal :if={@renaming_world} world={@world} />
+      <.name_map_modal :if={@naming_new_map} />
     </div>
     """
   end
 
+  # ---------------------------------------------------------------------------
+  # Components
+  # ---------------------------------------------------------------------------
+
   defp navbar(assigns) do
     ~H"""
-    <header class="navbar bg-base-200 border-b border-base-300 px-4 shrink-0">
-      <div class="flex-1">
-        <span class="font-semibold tracking-wide text-base-content">Estratos</span>
+    <header class="navbar bg-base-200 px-4 shrink-0 gap-3 min-h-0 h-12">
+      <div class="flex-1 flex items-center gap-2">
+        <span
+          class="font-semibold tracking-wide text-base-content cursor-pointer hover:text-primary transition-colors"
+          title={@world.description || "Click to edit world"}
+          phx-click="start_rename_world"
+        >
+          <%= @world.name %>
+        </span>
       </div>
-      <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form">
-        <label for={@uploads.map_image.ref} class="btn btn-sm btn-outline cursor-pointer">
+      <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form" phx-hook=".UploadForm">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline cursor-pointer"
+          phx-click="reupload"
+        >
           Upload
-        </label>
+        </button>
         <.live_file_input upload={@uploads.map_image} class="hidden" />
         <button
           type="submit"
           class="btn btn-sm btn-primary"
-          disabled={@uploads.map_image.entries == []}
+          disabled={@uploads.map_image.entries == [] and is_nil(@pending_image)}
         >
           Save
         </button>
       </form>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".UploadForm">
+        export default {
+          mounted() {
+            this.handleEvent("trigger-upload", ({ id }) => {
+              const inp = document.getElementById(id)
+              if (inp) {
+                inp.disabled = false
+                inp.value = ""
+                inp.click()
+              }
+            })
+          }
+        }
+      </script>
     </header>
+    """
+  end
+
+  defp map_tabs(assigns) do
+    ~H"""
+    <div class="absolute top-0 left-0 flex gap-1 px-2 z-10">
+      <%= for m <- @maps do %>
+        <button
+          type="button"
+          phx-click="select_map"
+          phx-value-id={m.id}
+          class={[
+            "px-3 pb-1.5 pt-1 bg-base-200 rounded-b-lg text-sm shadow-md transition-all",
+            if(@map && @map.id == m.id,
+              do: "pb-2 text-base-content",
+              else: "text-base-content/60 hover:text-base-content"
+            )
+          ]}
+        >
+          <span class="truncate max-w-[10rem]"><%= m.name %></span>
+        </button>
+      <% end %>
+      <button
+        type="button"
+        phx-click="new_map"
+        class={[
+          "flex items-center gap-1 px-3 rounded-b-lg text-sm bg-base-200 shadow-md transition-all",
+          if(@map == nil,
+            do: "pb-2 pt-1 text-base-content",
+            else: "pb-1.5 pt-1 text-base-content/60 hover:text-base-content"
+          )
+        ]}
+      >
+        <.icon name="hero-plus-micro" class="w-3.5 h-3.5" />
+        <span>New Map</span>
+      </button>
+    </div>
+    """
+  end
+
+  defp map_actions(assigns) do
+    ~H"""
+    <div class="absolute bottom-4 left-4 z-10 flex gap-1">
+      <%= if @renaming do %>
+        <form id="rename-form" phx-submit="rename_map" class="flex items-center gap-1">
+          <input
+            type="text"
+            name="name"
+            value={@map.name}
+            class="input input-sm bg-base-200 w-48"
+            autofocus
+          />
+          <button type="submit" class="btn btn-sm btn-primary">Save</button>
+          <button type="button" phx-click="cancel_rename" class="btn btn-sm">Cancel</button>
+        </form>
+      <% else %>
+        <button
+          type="button"
+          phx-click="start_rename"
+          class="btn btn-sm bg-base-200 border-base-content/20 hover:bg-base-100 shadow-xl"
+          title="Rename map"
+        >
+          <.icon name="hero-pencil-square-micro" class="w-4 h-4" />
+          Rename
+        </button>
+        <button
+          type="button"
+          phx-click="delete_map"
+          phx-confirm={"Delete \"#{@map.name}\"? This cannot be undone."}
+          class="btn btn-sm bg-base-200 border-base-content/20 hover:bg-error hover:text-error-content shadow-xl"
+          title="Delete map"
+        >
+          <.icon name="hero-trash-micro" class="w-4 h-4" />
+          Delete
+        </button>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp world_modal(assigns) do
+    ~H"""
+    <div class="modal modal-open modal-middle">
+      <div class="modal-box max-w-sm">
+        <h3 class="font-bold text-lg">Edit World</h3>
+        <form phx-submit="rename_world" class="flex flex-col gap-4 mt-4">
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Name</span></div>
+            <input
+              type="text"
+              name="name"
+              value={@world.name}
+              class="input input-bordered w-full"
+              autofocus
+              required
+            />
+          </label>
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Description</span></div>
+            <textarea
+              name="description"
+              class="textarea textarea-bordered w-full"
+              rows="3"
+              placeholder="A brief description of your world"
+            ><%= @world.description %></textarea>
+          </label>
+          <div class="modal-action">
+            <button type="button" phx-click="cancel_rename_world" class="btn">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
+      <div class="modal-backdrop" phx-click="cancel_rename_world"></div>
+    </div>
+    """
+  end
+
+  defp name_map_modal(assigns) do
+    ~H"""
+    <div class="modal modal-open modal-middle">
+      <div class="modal-box max-w-sm">
+        <h3 class="font-bold text-lg">Name your map</h3>
+        <form phx-submit="confirm_new_map" class="flex flex-col gap-4 mt-4">
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Map name</span></div>
+            <input
+              type="text"
+              name="name"
+              value="Untitled Map"
+              class="input input-bordered w-full"
+              autofocus
+              required
+            />
+          </label>
+          <div class="modal-action">
+            <button type="button" phx-click="cancel_new_map" class="btn">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create</button>
+          </div>
+        </form>
+      </div>
+      <div class="modal-backdrop" phx-click="cancel_new_map"></div>
+    </div>
     """
   end
 
@@ -79,7 +249,9 @@ defmodule EstratosWeb.MapLive do
       phx-hook=".MapContainer"
       class="flex-1 overflow-hidden bg-base-300 select-none relative"
     >
-      <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} />
+      <.map_tabs maps={@maps} map={@map} renaming={@renaming} />
+      <.map_actions :if={@map} map={@map} renaming={@renaming} />
+      <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} pending_image={@pending_image} />
       <.zoom_controls />
     </main>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".MapContainer">
@@ -232,35 +404,45 @@ defmodule EstratosWeb.MapLive do
 
   defp map_image(assigns) do
     ~H"""
-    <%= if entry = List.first(@uploads.map_image.entries) do %>
+    <%= if entry = List.last(@uploads.map_image.entries) do %>
       <.live_img_preview
         entry={entry}
         class="w-full h-full object-contain"
         phx-hook=".MapImage"
-        id="map-preview"
+        id={"map-preview-#{entry.ref}"}
         draggable="false"
       />
     <% else %>
-      <%= if @map do %>
-        <%= if @image_broken do %>
-          <div class="flex flex-col items-center justify-center h-full gap-2">
-            <.icon name="hero-exclamation-triangle" class="w-8 h-8 text-warning" />
-            <p class="text-base-content text-sm font-medium">Map image not found</p>
-            <p class="text-base-content/40 text-sm"><%= @map.name %></p>
-          </div>
-        <% else %>
-          <img
-            src={@map.image_path}
-            class="w-full h-full object-contain"
-            id="map-image"
-            draggable="false"
-            phx-hook=".MapImage"
-          />
-        <% end %>
+      <%= if @pending_image do %>
+        <img
+          src={@pending_image}
+          class="w-full h-full object-contain"
+          id="map-pending-image"
+          draggable="false"
+          phx-hook=".MapImage"
+        />
       <% else %>
-        <div class="flex items-center justify-center h-full">
-          <p class="text-base-content/40 text-sm">Upload a map image to get started</p>
-        </div>
+        <%= if @map do %>
+          <%= if @image_broken do %>
+            <div class="flex flex-col items-center justify-center h-full gap-2">
+              <.icon name="hero-exclamation-triangle" class="w-8 h-8 text-warning" />
+              <p class="text-base-content text-sm font-medium">Map image not found</p>
+              <p class="text-base-content/40 text-sm"><%= @map.name %></p>
+            </div>
+          <% else %>
+            <img
+              src={@map.image_path}
+              class="w-full h-full object-contain"
+              id="map-image"
+              draggable="false"
+              phx-hook=".MapImage"
+            />
+          <% end %>
+        <% else %>
+          <div class="flex items-center justify-center h-full">
+            <p class="text-base-content/40 text-sm">Upload a map image to get started</p>
+          </div>
+        <% end %>
       <% end %>
     <% end %>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".MapImage">
@@ -320,16 +502,104 @@ defmodule EstratosWeb.MapLive do
     """
   end
 
+  # ---------------------------------------------------------------------------
+  # Helpers
+  # ---------------------------------------------------------------------------
+
+  defp clear_pending(socket) do
+    socket =
+      socket.assigns.uploads.map_image.entries
+      |> Enum.reduce(socket, fn entry, sock ->
+        cancel_upload(sock, :map_image, entry.ref)
+      end)
+
+    if socket.assigns.pending_image do
+      MapStorage.delete(socket.assigns.pending_image)
+    end
+
+    socket
+    |> assign(:pending_image, nil)
+    |> assign(:naming_new_map, nil)
+    |> assign(:image_dimensions, nil)
+  end
+
+  defp image_broken?(nil), do: false
+
+  defp image_broken?(map) do
+    disk_path =
+      Path.join([
+        :code.priv_dir(:estratos),
+        "static",
+        "uploads",
+        "maps",
+        Path.basename(map.image_path)
+      ])
+
+    not File.exists?(disk_path)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Events
+  # ---------------------------------------------------------------------------
+
   @impl true
   def handle_event("validate", _params, socket) do
+    entries = socket.assigns.uploads.map_image.entries
+
+    socket =
+      if length(entries) > 1 do
+        entries
+        |> List.delete_at(-1)
+        |> Enum.reduce(socket, fn entry, sock ->
+          cancel_upload(sock, :map_image, entry.ref)
+        end)
+      else
+        socket
+      end
+
     {:noreply, socket}
   end
 
   @impl true
-  def handle_event("save", _params, socket) do
-    entries = socket.assigns.uploads.map_image.entries
+  def handle_event("reupload", _params, socket) do
+    {:noreply, push_event(socket, "trigger-upload", %{id: socket.assigns.uploads.map_image.ref})}
+  end
 
-    case entries do
+  @impl true
+  def handle_event("select_map", %{"id" => id}, socket) do
+    map = Worlds.get_map(String.to_integer(id))
+
+    {:noreply,
+     socket
+     |> clear_pending()
+     |> assign(:map, map)
+     |> assign(:image_broken, image_broken?(map))
+     |> assign(:renaming, false)}
+  end
+
+  @impl true
+  def handle_event("new_map", _params, socket) do
+    {:noreply,
+     socket
+     |> clear_pending()
+     |> assign(:map, nil)
+     |> assign(:image_broken, false)
+     |> assign(:renaming, false)}
+  end
+
+  @impl true
+  def handle_event("save", _params, socket) do
+    case socket.assigns.uploads.map_image.entries do
+      [] when socket.assigns.pending_image != nil ->
+        {w, h} = socket.assigns.image_dimensions || {nil, nil}
+
+        {:noreply,
+         assign(socket, :naming_new_map, %{
+           image_path: socket.assigns.pending_image,
+           image_width: w,
+           image_height: h
+         })}
+
       [] ->
         {:noreply, socket}
 
@@ -343,17 +613,42 @@ defmodule EstratosWeb.MapLive do
           [{:ok, image_path}] when is_binary(image_path) ->
             {width, height} = socket.assigns.image_dimensions || {nil, nil}
 
-            {:ok, map} =
-              Worlds.create_map(%{
-                name: "Untitled Map",
-                image_path: image_path,
-                image_width: width,
-                image_height: height
-              })
+            # Clean up previous pending image if replacing before save
+            if socket.assigns.pending_image do
+              MapStorage.delete(socket.assigns.pending_image)
+            end
+
+            socket =
+              case socket.assigns.map do
+                nil ->
+                  socket
+                  |> assign(:naming_new_map, %{
+                    image_path: image_path,
+                    image_width: width,
+                    image_height: height
+                  })
+                  |> assign(:pending_image, image_path)
+
+                current_map ->
+                  MapStorage.delete(current_map.image_path)
+
+                  {:ok, map} =
+                    Worlds.update_map(current_map, %{
+                      image_path: image_path,
+                      image_width: width,
+                      image_height: height
+                    })
+
+                  maps = Worlds.list_maps_for_world(socket.assigns.world)
+
+                  socket
+                  |> assign(:map, map)
+                  |> assign(:maps, maps)
+                  |> assign(:pending_image, nil)
+              end
 
             {:noreply,
              socket
-             |> assign(:map, map)
              |> assign(:image_broken, false)
              |> assign(:image_dimensions, nil)}
 
@@ -362,6 +657,118 @@ defmodule EstratosWeb.MapLive do
         end
     end
   end
+
+  # New map naming
+
+  @impl true
+  def handle_event("confirm_new_map", %{"name" => name}, socket) do
+    name = String.trim(name)
+    name = if name == "", do: "Untitled Map", else: name
+    pending = socket.assigns.naming_new_map
+
+    {:ok, map} =
+      Worlds.create_map(socket.assigns.world, %{
+        name: name,
+        image_path: pending.image_path,
+        image_width: pending.image_width,
+        image_height: pending.image_height
+      })
+
+    maps = Worlds.list_maps_for_world(socket.assigns.world)
+
+    {:noreply,
+     socket
+     |> assign(:map, map)
+     |> assign(:maps, maps)
+     |> assign(:naming_new_map, nil)
+     |> assign(:pending_image, nil)
+     |> assign(:image_broken, false)}
+  end
+
+  @impl true
+  def handle_event("cancel_new_map", _params, socket) do
+    {:noreply, assign(socket, :naming_new_map, nil)}
+  end
+
+  # World editing
+
+  @impl true
+  def handle_event("start_rename_world", _params, socket) do
+    {:noreply, assign(socket, :renaming_world, true)}
+  end
+
+  @impl true
+  def handle_event("cancel_rename_world", _params, socket) do
+    {:noreply, assign(socket, :renaming_world, false)}
+  end
+
+  @impl true
+  def handle_event("rename_world", %{"name" => name, "description" => description}, socket) do
+    name = String.trim(name)
+
+    if name != "" do
+      {:ok, world} =
+        Worlds.update_world(socket.assigns.world, %{name: name, description: description})
+
+      {:noreply,
+       socket
+       |> assign(:world, world)
+       |> assign(:renaming_world, false)}
+    else
+      {:noreply, assign(socket, :renaming_world, false)}
+    end
+  end
+
+  # Map renaming
+
+  @impl true
+  def handle_event("start_rename", _params, socket) do
+    {:noreply, assign(socket, :renaming, true)}
+  end
+
+  @impl true
+  def handle_event("cancel_rename", _params, socket) do
+    {:noreply, assign(socket, :renaming, false)}
+  end
+
+  @impl true
+  def handle_event("rename_map", %{"name" => name}, socket) do
+    name = String.trim(name)
+
+    if name != "" do
+      {:ok, map} = Worlds.update_map(socket.assigns.map, %{name: name})
+      maps = Worlds.list_maps_for_world(socket.assigns.world)
+
+      {:noreply,
+       socket
+       |> assign(:map, map)
+       |> assign(:maps, maps)
+       |> assign(:renaming, false)}
+    else
+      {:noreply, assign(socket, :renaming, false)}
+    end
+  end
+
+  # Map deletion
+
+  @impl true
+  def handle_event("delete_map", _params, socket) do
+    map = socket.assigns.map
+    MapStorage.delete(map.image_path)
+    Worlds.delete_map(map)
+
+    maps = Worlds.list_maps_for_world(socket.assigns.world)
+    next_map = List.first(maps)
+
+    {:noreply,
+     socket
+     |> assign(:map, next_map)
+     |> assign(:maps, maps)
+     |> assign(:image_broken, image_broken?(next_map))
+     |> assign(:renaming, false)}
+  end
+
+  # Image events
 
   @impl true
   def handle_event("image_dimensions", %{"width" => width, "height" => height}, socket) do

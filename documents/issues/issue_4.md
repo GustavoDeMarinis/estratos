@@ -18,7 +18,7 @@ Introduce the World as the root entity of the app and allow multiple maps per wo
 
 ## Section 1 — World Schema and Migration [sonnet]
 
-- [ ] Create the `Estratos.Worlds.World` schema:
+- [x] Create the `Estratos.Worlds.World` schema:
 
 | Field | Type | Notes |
 |---|---|---|
@@ -27,60 +27,60 @@ Introduce the World as the root entity of the app and allow multiple maps per wo
 | `description` | `:string` | Optional. Brief description |
 | `timestamps` | | `inserted_at`, `updated_at` |
 
-- [ ] Create the migration for `worlds` table
-- [ ] Add `world_id` foreign key to `maps` table (new migration)
-- [ ] Update `Map` schema: `belongs_to :world, World`
-- [ ] Update `World` schema: `has_many :maps, Map`
-- [ ] Changeset validates: `name` required
-- [ ] Seed a default world on first boot if none exists (or auto-create on first visit)
+- [x] Create the migration for `worlds` table
+- [x] Add `world_id` foreign key to `maps` table (new migration)
+- [x] Update `Map` schema: `belongs_to :world, World`
+- [x] Update `World` schema: `has_many :maps, Map`
+- [x] Changeset validates: `name` required
+- [x] Seed a default world on first boot if none exists (or auto-create on first visit)
 
 ---
 
 ## Section 2 — World Context Functions [sonnet]
 
-- [ ] Add to `Estratos.Worlds` context:
+- [x] Add to `Estratos.Worlds` context:
   - `get_or_create_default_world/0` — returns the single world, creating it ("My World") if none exists
   - `get_world!/1` — fetch world by ID (raises on not found)
   - `update_world/2` — update world attributes
   - `list_maps_for_world/1` — list maps belonging to a world (ordered by newest first)
   - `create_map/2` — updated to accept world association
-- [ ] Update existing `create_map/1` to require `world_id`
-- [ ] Add context tests for all new functions
+- [x] Update existing `create_map/1` to require `world_id`
+- [x] Add context tests for all new functions
 
 ---
 
 ## Section 3 — Map Selector UI [sonnet]
 
-- [ ] Add a map selector to the navbar (dropdown or horizontal tab bar):
+- [x] Add a map selector to the navbar (dropdown or horizontal tab bar):
   - Shows all maps for the current world
   - Highlights the currently active map
   - Clicking a map name switches the view to that map
-- [ ] Add a "New Map" action in the selector:
+- [x] Add a "New Map" action in the selector:
   - Clicking it enters the empty/upload state for a new map
   - Upload + Save creates a new map associated with the world
-- [ ] The current "Upload" button behavior changes:
+- [x] The current "Upload" button behavior changes:
   - If no map is selected (new map flow): works as before
   - If a map is already selected: replaces that map's image
-- [ ] Show the map name in the navbar (editable inline or via a simple input)
+- [x] Show the map name in the navbar (editable inline or via a simple input)
 
 ---
 
 ## Section 4 — Map Management [sonnet]
 
-- [ ] Allow renaming a map (inline edit or modal)
-- [ ] Allow deleting a map:
+- [x] Allow renaming a map (inline edit or modal)
+- [x] Allow deleting a map:
   - Confirmation prompt before delete
   - Deletes the DB record and the image file from disk
   - After deletion, switch to the next available map (or empty state if none)
-- [ ] After saving a new map, it becomes the active map in the selector
+- [x] After saving a new map, it becomes the active map in the selector
 
 ---
 
 ## Section 5 — World Header [sonnet]
 
-- [ ] Display the world name in the navbar or a header area
-- [ ] Allow editing the world name (inline edit)
-- [ ] Allow editing the world description (optional — could be a small expandable section or tooltip)
+- [x] Display the world name in the navbar or a header area
+- [x] Allow editing the world name (inline edit)
+- [x] Allow editing the world description (optional — could be a small expandable section or tooltip)
 
 ---
 

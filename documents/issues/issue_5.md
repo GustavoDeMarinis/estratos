@@ -53,7 +53,7 @@ Extend the app to support multiple worlds. The user can create new worlds, switc
 
 ---
 
-## Section 3 — World Deletion [sonnet]
+## Section 3 — World Deletion [sonnet] ✓
 
 **Where:** In the world edit modal (opened by clicking the world name in the dropdown, or via a gear/edit icon on each row).
 

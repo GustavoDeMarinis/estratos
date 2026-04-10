@@ -317,9 +317,20 @@ defmodule EstratosWeb.MapLive do
               placeholder="A brief description of your world"
             ><%= @world.description %></textarea>
           </label>
-          <div class="modal-action">
-            <button type="button" phx-click="cancel_rename_world" class="btn">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
+          <div class="modal-action justify-between">
+            <button
+              type="button"
+              phx-click="delete_world"
+              phx-value-id={@world.id}
+              phx-confirm={"Delete \"#{@world.name}\" and all its maps? This cannot be undone."}
+              class="btn btn-error btn-outline"
+            >
+              Delete World
+            </button>
+            <div class="flex gap-2">
+              <button type="button" phx-click="cancel_rename_world" class="btn">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save</button>
+            </div>
           </div>
         </form>
       </div>
@@ -882,6 +893,31 @@ defmodule EstratosWeb.MapLive do
      |> assign(:map, nil)
      |> assign(:image_broken, false)
      |> assign(:renaming, false)
+     |> assign(:world_modal, nil)}
+  end
+
+  # World deletion
+
+  @impl true
+  def handle_event("delete_world", %{"id" => id}, socket) do
+    world_to_delete = Worlds.get_world!(String.to_integer(id))
+    Worlds.delete_world(world_to_delete)
+
+    next_world = Worlds.get_or_create_default_world()
+    worlds = Worlds.list_worlds()
+    maps = Worlds.list_maps_for_world(next_world)
+    map = List.first(maps)
+
+    {:noreply,
+     socket
+     |> clear_pending()
+     |> assign(:world, next_world)
+     |> assign(:worlds, worlds)
+     |> assign(:maps, maps)
+     |> assign(:map, map)
+     |> assign(:image_broken, image_broken?(map))
+     |> assign(:renaming, false)
+     |> assign(:editing_world, nil)
      |> assign(:world_modal, nil)}
   end
 

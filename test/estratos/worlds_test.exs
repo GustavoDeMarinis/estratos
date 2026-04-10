@@ -176,12 +176,12 @@ defmodule Estratos.WorldsTest do
   end
 
   describe "list_maps_for_world/1" do
-    test "returns maps for the given world ordered by id descending" do
+    test "returns maps for the given world ordered by id ascending" do
       world = create_world()
       {:ok, first} = Worlds.create_map(world, @valid_map_attrs)
       {:ok, second} = Worlds.create_map(world, %{name: "Second Map", image_path: "/uploads/maps/second.png"})
       [head | _] = Worlds.list_maps_for_world(world)
-      assert head.id == second.id
+      assert head.id == first.id
       assert second.id > first.id
     end
 

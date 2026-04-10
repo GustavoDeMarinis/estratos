@@ -46,7 +46,7 @@ up: check-env
 	docker compose up -d
 	@echo "$(GREEN)✓ Services started$(NC)"
 	@echo "   App:      http://localhost:4000"
-	@echo "   Database: localhost:5432"
+	@echo "   Database: localhost:$${POSTGRES_HOST_PORT:-5433}"
 
 down:
 	@echo "$(YELLOW)Stopping services...$(NC)"

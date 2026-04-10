@@ -20,6 +20,69 @@ defmodule Estratos.WorldsTest do
   # World
   # ---------------------------------------------------------------------------
 
+  describe "list_worlds/0" do
+    test "returns empty list when no worlds exist" do
+      assert Worlds.list_worlds() == []
+    end
+
+    test "returns all worlds ordered by inserted_at ascending" do
+      {:ok, first} = Worlds.create_world(%{name: "First"})
+      {:ok, second} = Worlds.create_world(%{name: "Second"})
+      assert [w1, w2] = Worlds.list_worlds()
+      assert w1.id == first.id
+      assert w2.id == second.id
+    end
+  end
+
+  describe "create_world/1" do
+    test "creates a world with valid attrs" do
+      assert {:ok, world} = Worlds.create_world(%{name: "New World"})
+      assert world.name == "New World"
+      assert world.id != nil
+    end
+
+    test "creates a world with name and description" do
+      assert {:ok, world} = Worlds.create_world(%{name: "New World", description: "A great place"})
+      assert world.description == "A great place"
+    end
+
+    test "returns error changeset when name is missing" do
+      assert {:error, changeset} = Worlds.create_world(%{})
+      assert %{name: ["can't be blank"]} = errors_on(changeset)
+    end
+  end
+
+  describe "delete_world/1" do
+    test "deletes the world" do
+      {:ok, world} = Worlds.create_world(%{name: "Doomed World"})
+      assert {:ok, _} = Worlds.delete_world(world)
+      assert_raise Ecto.NoResultsError, fn -> Worlds.get_world!(world.id) end
+    end
+
+    test "deletes all maps belonging to the world" do
+      {:ok, world} = Worlds.create_world(%{name: "World With Maps"})
+      {:ok, map} = Worlds.create_map(world, @valid_map_attrs)
+      Worlds.delete_world(world)
+      assert Worlds.get_map(map.id) == nil
+    end
+
+    test "does not delete maps from other worlds" do
+      {:ok, world_a} = Worlds.create_world(%{name: "World A"})
+      {:ok, world_b} = Worlds.create_world(%{name: "World B"})
+      {:ok, map_b} = Worlds.create_map(world_b, @valid_map_attrs)
+      Worlds.delete_world(world_a)
+      assert Worlds.get_map(map_b.id) != nil
+    end
+
+    test "after deleting last world, get_or_create_default_world/0 creates a new default" do
+      {:ok, world} = Worlds.create_world(%{name: "Only World"})
+      Worlds.delete_world(world)
+      assert Worlds.list_worlds() == []
+      default = Worlds.get_or_create_default_world()
+      assert default.name == "My World"
+    end
+  end
+
   describe "get_or_create_default_world/0" do
     test "creates a world when none exists" do
       world = Worlds.get_or_create_default_world()
@@ -113,12 +176,12 @@ defmodule Estratos.WorldsTest do
   end
 
   describe "list_maps_for_world/1" do
-    test "returns maps for the given world ordered by id descending" do
+    test "returns maps for the given world ordered by id ascending" do
       world = create_world()
       {:ok, first} = Worlds.create_map(world, @valid_map_attrs)
       {:ok, second} = Worlds.create_map(world, %{name: "Second Map", image_path: "/uploads/maps/second.png"})
       [head | _] = Worlds.list_maps_for_world(world)
-      assert head.id == second.id
+      assert head.id == first.id
       assert second.id > first.id
     end
 

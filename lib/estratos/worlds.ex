@@ -1,11 +1,29 @@
 defmodule Estratos.Worlds do
   import Ecto.Query
 
+  alias Estratos.MapStorage
   alias Estratos.Repo
   alias Estratos.Worlds.Map
   alias Estratos.Worlds.World
 
   # World
+
+  def list_worlds do
+    Repo.all(from w in World, order_by: [asc: w.inserted_at])
+  end
+
+  def create_world(attrs) do
+    %World{}
+    |> World.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def delete_world(%World{} = world) do
+    maps = list_maps_for_world(world)
+    Enum.each(maps, fn map -> MapStorage.delete(map.image_path) end)
+    Repo.delete_all(from m in Map, where: m.world_id == ^world.id)
+    Repo.delete(world)
+  end
 
   def get_or_create_default_world do
     case Repo.one(from w in World, limit: 1) do

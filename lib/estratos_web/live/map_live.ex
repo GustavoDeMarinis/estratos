@@ -7,18 +7,21 @@ defmodule EstratosWeb.MapLive do
   @impl true
   def mount(_params, _session, socket) do
     world = Worlds.get_or_create_default_world()
+    worlds = Worlds.list_worlds()
     maps = Worlds.list_maps_for_world(world)
     map = List.first(maps)
 
     socket =
       socket
       |> assign(:world, world)
+      |> assign(:worlds, worlds)
       |> assign(:maps, maps)
       |> assign(:map, map)
       |> assign(:image_broken, image_broken?(map))
       |> assign(:image_dimensions, nil)
       |> assign(:renaming, false)
-      |> assign(:renaming_world, false)
+      |> assign(:world_modal, nil)
+      |> assign(:editing_world, nil)
       |> assign(:naming_new_map, nil)
       |> assign(:pending_image, nil)
       # max_entries: 2 allows selecting a replacement image while keeping the
@@ -40,10 +43,10 @@ defmodule EstratosWeb.MapLive do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col h-full">
-      <.navbar world={@world} uploads={@uploads} pending_image={@pending_image} />
+      <.navbar world={@world} worlds={@worlds} uploads={@uploads} pending_image={@pending_image} />
       <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} />
       <Layouts.flash_group flash={@flash} />
-      <.world_modal :if={@renaming_world} world={@world} />
+      <.world_modal :if={@world_modal} world={@editing_world || @world} mode={@world_modal} />
       <.name_map_modal :if={@naming_new_map} />
     </div>
     """
@@ -57,13 +60,86 @@ defmodule EstratosWeb.MapLive do
     ~H"""
     <header class="navbar bg-base-200 px-4 shrink-0 gap-3 min-h-0 h-12">
       <div class="flex-1 flex items-center gap-2">
-        <span
-          class="font-semibold tracking-wide text-base-content cursor-pointer hover:text-primary transition-colors"
-          title={@world.description || "Click to edit world"}
-          phx-click="start_rename_world"
-        >
-          <%= @world.name %>
-        </span>
+        <div class="dropdown" id="world-dropdown" phx-hook=".WorldDropdown">
+          <button
+            tabindex="0"
+            type="button"
+            class="btn btn-sm btn-ghost gap-1 font-semibold tracking-wide"
+          >
+            <span class="max-w-[12rem] truncate"><%= @world.name %></span>
+            <.icon name="hero-chevron-down-micro" class="w-3.5 h-3.5 opacity-60 shrink-0" />
+          </button>
+          <ul
+            tabindex="0"
+            class="dropdown-content menu bg-base-100 border border-base-content/10 rounded-box shadow-lg z-20 w-56 mt-1 max-h-72 overflow-y-auto flex-nowrap p-1"
+          >
+            <%= for w <- @worlds do %>
+              <li>
+                <div class="flex flex-row items-center gap-1">
+                  <button
+                    type="button"
+                    phx-click="select_world"
+                    phx-value-id={w.id}
+                    class={["flex items-center gap-2 flex-1 text-left rounded px-2 py-1.5 hover:bg-base-content/10", if(@world.id == w.id, do: "font-semibold", else: "")]}
+                  >
+                    <.icon
+                      :if={@world.id == w.id}
+                      name="hero-check-micro"
+                      class="w-3.5 h-3.5 shrink-0 text-primary"
+                    />
+                    <span :if={@world.id != w.id} class="w-3.5 shrink-0" />
+                    <span class="truncate"><%= w.name %></span>
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="start_rename_world_id"
+                    phx-value-id={w.id}
+                    class="p-1.5 shrink-0 text-base-content/40 hover:text-primary rounded transition-colors"
+                    title="Edit world"
+                  >
+                    <.icon name="hero-pencil-square-micro" class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </li>
+            <% end %>
+            <li><div class="divider my-0.5"></div></li>
+            <li>
+              <button
+                type="button"
+                phx-click="new_world"
+                class="flex items-center gap-2 w-full text-left rounded"
+              >
+                <.icon name="hero-plus-micro" class="w-3.5 h-3.5 shrink-0" />
+                <span>New World</span>
+              </button>
+            </li>
+          </ul>
+          <script :type={Phoenix.LiveView.ColocatedHook} name=".WorldDropdown">
+            export default {
+              mounted() {
+                this.closeOnOutsideClick = (e) => {
+                  if (!this.el.contains(e.target)) {
+                    this.el.removeAttribute("open")
+                    const btn = this.el.querySelector("[tabindex='0']")
+                    if (btn) btn.blur()
+                  }
+                }
+                this.closeOnSelect = (e) => {
+                  if (e.target.closest("[phx-click]")) {
+                    this.el.removeAttribute("open")
+                    const btn = this.el.querySelector("[tabindex='0']")
+                    if (btn) btn.blur()
+                  }
+                }
+                document.addEventListener("click", this.closeOnOutsideClick)
+                this.el.addEventListener("click", this.closeOnSelect)
+              },
+              destroyed() {
+                document.removeEventListener("click", this.closeOnOutsideClick)
+              }
+            }
+          </script>
+        </div>
       </div>
       <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form" phx-hook=".UploadForm">
         <button
@@ -177,7 +253,45 @@ defmodule EstratosWeb.MapLive do
     """
   end
 
-  defp world_modal(assigns) do
+  defp world_modal(%{mode: :new} = assigns) do
+    ~H"""
+    <div class="modal modal-open modal-middle">
+      <div class="modal-box max-w-sm">
+        <h3 class="font-bold text-lg">New World</h3>
+        <form phx-submit="create_world" class="flex flex-col gap-4 mt-4">
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Name</span></div>
+            <input
+              type="text"
+              name="name"
+              value=""
+              placeholder="My World"
+              class="input input-bordered w-full"
+              autofocus
+              required
+            />
+          </label>
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Description</span></div>
+            <textarea
+              name="description"
+              class="textarea textarea-bordered w-full"
+              rows="3"
+              placeholder="A brief description of your world"
+            ></textarea>
+          </label>
+          <div class="modal-action">
+            <button type="button" phx-click="cancel_rename_world" class="btn">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create</button>
+          </div>
+        </form>
+      </div>
+      <div class="modal-backdrop" phx-click="cancel_rename_world"></div>
+    </div>
+    """
+  end
+
+  defp world_modal(%{mode: :edit} = assigns) do
     ~H"""
     <div class="modal modal-open modal-middle">
       <div class="modal-box max-w-sm">
@@ -690,33 +804,103 @@ defmodule EstratosWeb.MapLive do
     {:noreply, assign(socket, :naming_new_map, nil)}
   end
 
-  # World editing
+  # World modal (edit existing or create new)
+
+  @impl true
+  def handle_event("new_world", _params, socket) do
+    {:noreply, assign(socket, :world_modal, :new)}
+  end
 
   @impl true
   def handle_event("start_rename_world", _params, socket) do
-    {:noreply, assign(socket, :renaming_world, true)}
+    {:noreply,
+     socket
+     |> assign(:editing_world, socket.assigns.world)
+     |> assign(:world_modal, :edit)}
+  end
+
+  @impl true
+  def handle_event("start_rename_world_id", %{"id" => id}, socket) do
+    editing_world = Worlds.get_world!(String.to_integer(id))
+
+    {:noreply,
+     socket
+     |> assign(:editing_world, editing_world)
+     |> assign(:world_modal, :edit)}
   end
 
   @impl true
   def handle_event("cancel_rename_world", _params, socket) do
-    {:noreply, assign(socket, :renaming_world, false)}
+    {:noreply,
+     socket
+     |> assign(:world_modal, nil)
+     |> assign(:editing_world, nil)}
   end
 
   @impl true
   def handle_event("rename_world", %{"name" => name, "description" => description}, socket) do
     name = String.trim(name)
+    target = socket.assigns.editing_world || socket.assigns.world
 
     if name != "" do
-      {:ok, world} =
-        Worlds.update_world(socket.assigns.world, %{name: name, description: description})
+      {:ok, updated} = Worlds.update_world(target, %{name: name, description: description})
+      worlds = Worlds.list_worlds()
+
+      # If we edited the active world, update it
+      world =
+        if target.id == socket.assigns.world.id, do: updated, else: socket.assigns.world
 
       {:noreply,
        socket
        |> assign(:world, world)
-       |> assign(:renaming_world, false)}
+       |> assign(:worlds, worlds)
+       |> assign(:editing_world, nil)
+       |> assign(:world_modal, nil)}
     else
-      {:noreply, assign(socket, :renaming_world, false)}
+      {:noreply,
+       socket
+       |> assign(:editing_world, nil)
+       |> assign(:world_modal, nil)}
     end
+  end
+
+  @impl true
+  def handle_event("create_world", %{"name" => name, "description" => description}, socket) do
+    name = String.trim(name)
+    name = if name == "", do: "New World", else: name
+
+    {:ok, world} = Worlds.create_world(%{name: name, description: description})
+    worlds = Worlds.list_worlds()
+    maps = Worlds.list_maps_for_world(world)
+
+    {:noreply,
+     socket
+     |> clear_pending()
+     |> assign(:world, world)
+     |> assign(:worlds, worlds)
+     |> assign(:maps, maps)
+     |> assign(:map, nil)
+     |> assign(:image_broken, false)
+     |> assign(:renaming, false)
+     |> assign(:world_modal, nil)}
+  end
+
+  # World switching
+
+  @impl true
+  def handle_event("select_world", %{"id" => id}, socket) do
+    world = Worlds.get_world!(String.to_integer(id))
+    maps = Worlds.list_maps_for_world(world)
+    map = List.first(maps)
+
+    {:noreply,
+     socket
+     |> clear_pending()
+     |> assign(:world, world)
+     |> assign(:maps, maps)
+     |> assign(:map, map)
+     |> assign(:image_broken, image_broken?(map))
+     |> assign(:renaming, false)}
   end
 
   # Map renaming

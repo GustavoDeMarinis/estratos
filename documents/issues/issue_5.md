@@ -30,7 +30,7 @@ Extend the app to support multiple worlds. The user can create new worlds, switc
 
 ---
 
-## Section 2 — World Selector Dropdown in Navbar [sonnet]
+## Section 2 — World Selector Dropdown in Navbar [sonnet] ✓
 
 **Where:** Far-left of the navbar, replacing the current static world name text.
 

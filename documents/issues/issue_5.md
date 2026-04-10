@@ -72,16 +72,16 @@ Extend the app to support multiple worlds. The user can create new worlds, switc
 
 ## Section 4 — World Switching Logic [sonnet]
 
-- [ ] When a world is selected from the dropdown:
+- [x] When a world is selected from the dropdown:
   - Update `socket.assigns.world` to the selected world
   - Reload `maps` for the new world
   - Set `map` to the first map of the new world (or nil if none)
   - Clear any pending uploads or rename state
   - Reset image-broken state
-- [ ] When a new world is created:
+- [x] When a new world is created:
   - Switch to the new world immediately
   - Maps list will be empty — show the empty state ("Upload a map image to get started")
-- [ ] When a world is deleted:
+- [x] When a world is deleted:
   - Switch to next available world, or create default if none
 
 ---

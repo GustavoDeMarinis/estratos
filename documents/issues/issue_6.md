@@ -175,18 +175,18 @@ Same fields as Continent.
 
 ## Section 7 — Pin Actions (Move and Delete) [sonnet]
 
-- [ ] Create a `sidebar_actions` component rendered at the bottom of the sidebar, inside a fixed/sticky container: `border-t border-base-content/10 p-2 bg-base-200 flex gap-2`
-- [ ] **Move Pin** button: `btn btn-outline btn-sm flex-1` with `hero-arrows-pointing-out-micro` icon and text "Move"
-- [ ] **Delete** button: `btn btn-error btn-outline btn-sm flex-1` with `hero-trash-micro` icon and text "Delete"
-- [ ] Add `:moving_pin` assign to socket (nil or `%{pin_id, original_x, original_y}`), initialized to nil
-- [ ] Add `handle_event("start_move_pin")` — store original position in `:moving_pin`, collapse the sidebar, change cursor to crosshair (reuse pin placement mode cursor logic)
-- [ ] In the JS hook: when `:moving_pin` is set, next map click calculates new normalized coords and pushes `"move_pin_to"` event with `%{x, y}`
-- [ ] Add `handle_event("move_pin_to", %{"x" => x, "y" => y})` — temporarily update the pin position in assigns (for visual feedback), set a `:confirm_move` assign with the new coordinates
-- [ ] Show a small confirmation modal: "Confirm new position?" with Confirm and Cancel buttons
-- [ ] Add `handle_event("confirm_move")` — call `Pins.update_pin(pin, %{x: new_x, y: new_y})`, clear `:moving_pin` and `:confirm_move`, reload pin data, reopen sidebar
-- [ ] Add `handle_event("cancel_move")` — restore pin to original position from `:moving_pin`, clear `:moving_pin` and `:confirm_move`, reopen sidebar
-- [ ] **Delete** button has `phx-confirm={"Delete this #{entity_type} and its pin? This cannot be undone."}`
-- [ ] Add `handle_event("delete_entity")` — call `Entities.delete_continent/1` or `delete_ocean/1` (which cascade-deletes pins), clear `:selected_pin`, set `:sidebar_open` to false, reload pins for current map
+- [x] Create a `sidebar_actions` component rendered at the bottom of the sidebar, inside a fixed/sticky container: `border-t border-base-content/10 p-2 bg-base-200 flex gap-2`
+- [x] **Move Pin** button: `btn btn-outline btn-sm flex-1` with `hero-arrows-pointing-out-micro` icon and text "Move"
+- [x] **Delete** button: `btn btn-error btn-outline btn-sm flex-1` with `hero-trash-micro` icon and text "Delete"
+- [x] Add `:moving_pin` assign to socket (nil or `%{pin_id, original_x, original_y}`), initialized to nil
+- [x] Add `handle_event("start_move_pin")` — store original position in `:moving_pin`, collapse the sidebar, change cursor to crosshair (reuse pin placement mode cursor logic)
+- [x] In the JS hook: when `:moving_pin` is set, next map click calculates new normalized coords and pushes `"move_pin_to"` event with `%{x, y}`
+- [x] Add `handle_event("move_pin_to", %{"x" => x, "y" => y})` — temporarily update the pin position in assigns (for visual feedback), set a `:confirm_move` assign with the new coordinates
+- [x] Show a small confirmation modal: "Confirm new position?" with Confirm and Cancel buttons
+- [x] Add `handle_event("confirm_move")` — call `Pins.update_pin(pin, %{x: new_x, y: new_y})`, clear `:moving_pin` and `:confirm_move`, reload pin data, reopen sidebar
+- [x] Add `handle_event("cancel_move")` — restore pin to original position from `:moving_pin`, clear `:moving_pin` and `:confirm_move`, reopen sidebar
+- [x] **Delete** button has `phx-confirm={"Delete this #{entity_type} and its pin? This cannot be undone."}`
+- [x] Add `handle_event("delete_entity")` — call `Entities.delete_continent/1` or `delete_ocean/1` (which cascade-deletes pins), clear `:selected_pin`, set `:sidebar_open` to false, reload pins for current map
 
 ---
 

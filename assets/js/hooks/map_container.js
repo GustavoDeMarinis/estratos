@@ -195,7 +195,11 @@ export default {
         //   x  = ((px - tx) / scale - ox) / contentW
         const x = Math.max(0, Math.min(1, (((rawX - this.tx) / this.scale) - ox) / contentW))
         const y = Math.max(0, Math.min(1, (((rawY - this.ty) / this.scale) - oy) / contentH))
-        this.pushEvent("pin_clicked", { x, y })
+        if (this.el.dataset.moveMode === "true") {
+          this.pushEvent("move_pin_to", { x, y })
+        } else {
+          this.pushEvent("pin_clicked", { x, y })
+        }
       } else {
         // Normal mode — background click deselects current pin
         if (!onPin && !onButton && !onSidebar) {

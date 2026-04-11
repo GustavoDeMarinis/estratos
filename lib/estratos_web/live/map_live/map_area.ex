@@ -19,6 +19,7 @@ defmodule EstratosWeb.MapLive.MapArea do
   attr :sidebar_open, :boolean, required: true
   attr :field_values, :map, required: true
   attr :editing_fields, :any, required: true
+  attr :moving_pin, :any, required: true
 
   def map_viewport(assigns) do
     ~H"""
@@ -26,7 +27,8 @@ defmodule EstratosWeb.MapLive.MapArea do
       id="map-container"
       phx-hook="MapContainer"
       data-map-id={if @map, do: to_string(@map.id), else: ""}
-      class={["flex-1 overflow-hidden bg-base-300 select-none relative", if(@pin_mode, do: "cursor-crosshair", else: "")]}
+      data-move-mode={if !is_nil(@moving_pin), do: "true", else: "false"}
+      class={["flex-1 overflow-hidden bg-base-300 select-none relative", if(@pin_mode || !is_nil(@moving_pin), do: "cursor-crosshair", else: "")]}
     >
       <.map_tabs maps={@maps} map={@map} renaming={@renaming} />
       <.map_actions :if={@map} map={@map} renaming={@renaming} />
@@ -37,6 +39,7 @@ defmodule EstratosWeb.MapLive.MapArea do
         sidebar_open={@sidebar_open}
         field_values={@field_values}
         editing_fields={@editing_fields}
+        moving_pin={@moving_pin}
       />
       <.zoom_controls />
     </main>

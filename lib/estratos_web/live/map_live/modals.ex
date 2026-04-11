@@ -173,4 +173,23 @@ defmodule EstratosWeb.MapLive.Modals do
     </div>
     """
   end
+
+  attr :confirm_move, :map, required: true
+
+  def confirm_move_modal(assigns) do
+    ~H"""
+    <div class="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+      <div class="bg-base-100 rounded-xl shadow-xl border border-base-content/20 p-4 flex flex-col gap-3 pointer-events-auto">
+        <p class="text-sm font-semibold">Confirm new position?</p>
+        <p class="text-xs text-base-content/60">
+          <%= Float.round(@confirm_move.x * 100, 1) %>%, <%= Float.round(@confirm_move.y * 100, 1) %>%
+        </p>
+        <div class="flex gap-2">
+          <button type="button" phx-click="confirm_move" class="btn btn-primary btn-sm flex-1">Confirm</button>
+          <button type="button" phx-click="cancel_move" class="btn btn-ghost btn-sm flex-1">Cancel</button>
+        </div>
+      </div>
+    </div>
+    """
+  end
 end

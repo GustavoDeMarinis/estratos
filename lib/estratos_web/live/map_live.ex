@@ -77,11 +77,13 @@ defmodule EstratosWeb.MapLive do
         sidebar_open={@sidebar_open}
         field_values={@field_values}
         editing_fields={@editing_fields}
+        moving_pin={@moving_pin}
       />
       <Layouts.flash_group flash={@flash} />
       <Modals.world_modal :if={@world_modal} world={@editing_world || @world} mode={@world_modal} />
       <Modals.name_map_modal :if={@naming_new_map} />
       <Modals.pin_create_modal :if={@pending_pin} />
+      <Modals.confirm_move_modal :if={@confirm_move} confirm_move={@confirm_move} />
     </div>
     """
   end
@@ -632,5 +634,86 @@ defmodule EstratosWeb.MapLive do
       # Enable edit
       {:noreply, assign(socket, :editing_fields, MapSet.put(editing, field))}
     end
+  end
+
+  @impl true
+  def handle_event("start_move_pin", _params, socket) do
+    pin = socket.assigns.selected_pin.pin
+
+    {:noreply,
+     socket
+     |> assign(:moving_pin, %{pin_id: pin.id, original_x: pin.x, original_y: pin.y})
+     |> assign(:sidebar_open, false)}
+  end
+
+  @impl true
+  def handle_event("move_pin_to", %{"x" => x, "y" => y}, socket) do
+    if socket.assigns.moving_pin do
+      %{pin: pin, entity: entity} = socket.assigns.selected_pin
+      updated_pin = %{pin | x: x, y: y}
+
+      updated_pins =
+        Enum.map(socket.assigns.pins, fn
+          %{pin: p} = entry when p.id == pin.id -> %{entry | pin: updated_pin}
+          entry -> entry
+        end)
+
+      {:noreply,
+       socket
+       |> assign(:selected_pin, %{pin: updated_pin, entity: entity})
+       |> assign(:pins, updated_pins)
+       |> assign(:confirm_move, %{x: x, y: y})}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("confirm_move", _params, socket) do
+    %{pin_id: pin_id} = socket.assigns.moving_pin
+    %{x: x, y: y} = socket.assigns.confirm_move
+    pin = Pins.get_pin!(pin_id)
+    {:ok, updated_pin} = Pins.update_pin(pin, %{x: x, y: y})
+    entity = Pins.get_entity_for_pin(updated_pin)
+
+    {:noreply,
+     socket
+     |> assign(:moving_pin, nil)
+     |> assign(:confirm_move, nil)
+     |> assign(:selected_pin, %{pin: updated_pin, entity: entity})
+     |> assign(:sidebar_open, true)
+     |> load_pins()}
+  end
+
+  @impl true
+  def handle_event("cancel_move", _params, socket) do
+    pin = Pins.get_pin!(socket.assigns.moving_pin.pin_id)
+    entity = Pins.get_entity_for_pin(pin)
+
+    {:noreply,
+     socket
+     |> assign(:moving_pin, nil)
+     |> assign(:confirm_move, nil)
+     |> assign(:selected_pin, %{pin: pin, entity: entity})
+     |> assign(:sidebar_open, true)
+     |> load_pins()}
+  end
+
+  @impl true
+  def handle_event("delete_entity", _params, socket) do
+    %{pin: _pin, entity: entity} = socket.assigns.selected_pin
+
+    case socket.assigns.selected_pin.pin.entity_type do
+      "continent" -> Entities.delete_continent(entity)
+      "ocean" -> Entities.delete_ocean(entity)
+    end
+
+    {:noreply,
+     socket
+     |> assign(:selected_pin, nil)
+     |> assign(:sidebar_open, false)
+     |> assign(:moving_pin, nil)
+     |> assign(:confirm_move, nil)
+     |> load_pins()}
   end
 end

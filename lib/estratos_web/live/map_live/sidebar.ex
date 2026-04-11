@@ -8,6 +8,7 @@ defmodule EstratosWeb.MapLive.Sidebar do
   attr :sidebar_open, :boolean, required: true
   attr :field_values, :map, required: true
   attr :editing_fields, :any, required: true
+  attr :moving_pin, :any, required: true
 
   def sidebar(assigns) do
     ~H"""
@@ -36,10 +37,8 @@ defmodule EstratosWeb.MapLive.Sidebar do
             <% end %>
           </div>
 
-          <%!-- Bottom actions (Section 7 — stub) --%>
-          <div class="border-t border-base-content/10 p-2 bg-base-200 flex gap-2 shrink-0">
-            <%!-- Move and Delete buttons go here --%>
-          </div>
+          <%!-- Bottom actions --%>
+          <.sidebar_actions :if={@selected_pin} selected_pin={@selected_pin} moving_pin={@moving_pin} />
         </div>
       </div>
 
@@ -63,6 +62,34 @@ defmodule EstratosWeb.MapLive.Sidebar do
             <span class="text-xs opacity-60 leading-tight capitalize block"><%= @selected_pin.pin.entity_type %></span>
           </span>
         <% end %>
+      </button>
+    </div>
+    """
+  end
+
+  attr :selected_pin, :map, required: true
+  attr :moving_pin, :any, required: true
+
+  defp sidebar_actions(assigns) do
+    ~H"""
+    <div class="border-t border-base-content/10 p-2 bg-base-200 flex gap-2 shrink-0">
+      <button
+        type="button"
+        phx-click="start_move_pin"
+        disabled={!is_nil(@moving_pin)}
+        class="btn btn-outline btn-sm flex-1"
+      >
+        <.icon name="hero-arrows-pointing-out-micro" class="w-4 h-4" />
+        Move
+      </button>
+      <button
+        type="button"
+        phx-click="delete_entity"
+        phx-confirm={"Delete this #{@selected_pin.pin.entity_type} and its pin? This cannot be undone."}
+        class="btn btn-error btn-outline btn-sm flex-1"
+      >
+        <.icon name="hero-trash-micro" class="w-4 h-4" />
+        Delete
       </button>
     </div>
     """

@@ -581,26 +581,26 @@ defmodule EstratosWeb.MapLive do
 
   defp map_pins(assigns) do
     ~H"""
-    <div
-      data-pins-overlay
-      class="absolute inset-0 pointer-events-none"
-      style="transform-origin: 0 0"
-    >
+    <div data-pins-overlay class="absolute inset-0 pointer-events-none">
       <div
         :if={@pending_pin}
         data-pending-pin
+        data-pin-x={@pending_pin.x}
+        data-pin-y={@pending_pin.y}
         class="absolute pointer-events-none opacity-60"
-        style={"left: #{@pending_pin.x * 100}%; top: #{@pending_pin.y * 100}%; transform: translate(-50%, -100%)"}
+        style="transform: translate(-50%, -100%)"
       >
         <.icon name="hero-map-pin-solid" class="w-7 h-7 text-primary drop-shadow" />
       </div>
       <div
         :for={%{pin: pin, entity: entity} <- @pins}
         data-pin
+        data-pin-x={pin.x}
+        data-pin-y={pin.y}
         phx-click="select_pin"
         phx-value-id={pin.id}
         class="absolute pointer-events-auto group cursor-pointer"
-        style={"left: #{pin.x * 100}%; top: #{pin.y * 100}%; transform: translate(-50%, -100%)"}
+        style="transform: translate(-50%, -100%)"
       >
         <.icon
           name="hero-map-pin-solid"
@@ -650,22 +650,53 @@ defmodule EstratosWeb.MapLive do
           const MAX_SCALE = 10
 
           this.img = () => this.el.querySelector("img")
-          this.pinsOverlay = () => this.el.querySelector("[data-pins-overlay]")
+
+          // Compute the image content area within the container, accounting for
+          // object-contain letterboxing. Pin coordinates are normalized to this
+          // content area (not the container) so they track the image correctly
+          // when the container's aspect ratio changes (e.g. devtools opens).
+          this.imageMetrics = () => {
+            const W = this.el.offsetWidth
+            const H = this.el.offsetHeight
+            const img = this.img()
+            let contentW = W, contentH = H, ox = 0, oy = 0
+            if (img && img.naturalWidth && img.naturalHeight) {
+              const imgAspect = img.naturalWidth / img.naturalHeight
+              const boxAspect = W / H
+              if (imgAspect > boxAspect) {
+                contentW = W
+                contentH = W / imgAspect
+                oy = (H - contentH) / 2
+              } else {
+                contentH = H
+                contentW = H * imgAspect
+                ox = (W - contentW) / 2
+              }
+            }
+            return { W, H, contentW, contentH, ox, oy }
+          }
+
+          // Position each pin at its exact pixel coordinate, accounting for
+          // pan/zoom and the image content letterbox. Pin coords are relative
+          // to the image content area, so they track correctly across resizes.
+          this.updatePinPositions = () => {
+            const overlay = this.el.querySelector("[data-pins-overlay]")
+            if (!overlay) return
+            const { contentW, contentH, ox, oy } = this.imageMetrics()
+            overlay.querySelectorAll("[data-pin],[data-pending-pin]").forEach(el => {
+              const x = parseFloat(el.dataset.pinX || 0)
+              const y = parseFloat(el.dataset.pinY || 0)
+              el.style.left = `${this.scale * (x * contentW + ox) + this.tx}px`
+              el.style.top = `${this.scale * (y * contentH + oy) + this.ty}px`
+            })
+          }
 
           this.applyTransform = () => {
             const img = this.img()
             if (!img) return
             img.style.transformOrigin = "0 0"
             img.style.transform = `translate(${this.tx}px, ${this.ty}px) scale(${this.scale})`
-
-            const overlay = this.pinsOverlay()
-            if (overlay) {
-              overlay.style.transformOrigin = "0 0"
-              overlay.style.transform = `translate(${this.tx}px, ${this.ty}px) scale(${this.scale})`
-              overlay.querySelectorAll("[data-pin],[data-pending-pin]").forEach(pin => {
-                pin.style.transform = `translate(-50%, -100%) scale(${1 / this.scale})`
-              })
-            }
+            this.updatePinPositions()
           }
 
           this.reset = () => {
@@ -791,8 +822,12 @@ defmodule EstratosWeb.MapLive do
               const rect = this.el.getBoundingClientRect()
               const rawX = e.clientX - rect.left
               const rawY = e.clientY - rect.top
-              const x = Math.max(0, Math.min(1, (rawX - this.tx) / (rect.width * this.scale)))
-              const y = Math.max(0, Math.min(1, (rawY - this.ty) / (rect.height * this.scale)))
+              const { contentW, contentH, ox, oy } = this.imageMetrics()
+              // Invert the display formula in updatePinPositions:
+              //   px = scale * (x * contentW + ox) + tx
+              //   x  = ((px - tx) / scale - ox) / contentW
+              const x = Math.max(0, Math.min(1, (((rawX - this.tx) / this.scale) - ox) / contentW))
+              const y = Math.max(0, Math.min(1, (((rawY - this.ty) / this.scale) - oy) / contentH))
               this.pushEvent("pin_clicked", { x, y })
             } else {
               // Normal mode — background click deselects current pin
@@ -805,6 +840,15 @@ defmodule EstratosWeb.MapLive do
 
           this._lastMapId = this.el.dataset.mapId
           this.syncUI()
+
+          // Re-clamp, re-apply, and reposition pins whenever the container
+          // resizes (devtools open/close, window resize, etc.)
+          this.resizeObserver = new ResizeObserver(() => {
+            this.clamp()
+            this.applyTransform()  // updates image transform + pin pixel positions
+            this.syncUI()
+          })
+          this.resizeObserver.observe(this.el)
         },
 
         updated() {
@@ -824,6 +868,7 @@ defmodule EstratosWeb.MapLive do
           window.removeEventListener("mousemove", this.onMouseMove)
           window.removeEventListener("mouseup", this.onMouseUp)
           this.el.removeEventListener("click", this.onPinClick)
+          if (this.resizeObserver) this.resizeObserver.disconnect()
         }
       }
     </script>

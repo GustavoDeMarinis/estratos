@@ -33,6 +33,8 @@ defmodule EstratosWeb.MapLive do
       |> assign(:sidebar_open, false)
       |> assign(:field_values, %{})
       |> assign(:editing_fields, MapSet.new())
+      |> assign(:moving_pin, nil)
+      |> assign(:confirm_move, nil)
       |> load_pins()
       # max_entries: 2 allows selecting a replacement image while keeping the
       # current preview — validate cancels the older entry once the new one arrives.

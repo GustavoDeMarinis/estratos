@@ -1,0 +1,242 @@
+# Issue 6 — Pins, Continents and Oceans
+
+## Objective
+
+Introduce the pin system and the first two pinnable entity types (Continent and Ocean). Users can toggle pin placement mode, click the map to drop a pin, fill out the entity form, and interact with saved pins via a collapsible sidebar. This establishes the entity-pin pattern that all future entity types will follow.
+
+---
+
+## Constraints
+
+- Pins use normalized coordinates (`x`, `y` as floats 0.0–1.0) relative to the map image — see Roadmap 7
+- Pins belong to a **map** (not a world) via `map_id`
+- Entities (Continent, Ocean) belong to a **world** via `world_id`
+- The pin table is polymorphic: `entity_type` (string) + `entity_id` (integer) — no DB-level FK, enforced in code
+- One pin per entity per map for now (multi-pin per entity is a future feature — design so it's easy to add)
+- Deleting an entity cascade-deletes its pins; deleting a parent entity does NOT cascade-delete child entities or their pins (Roadmap 10.1)
+- All entity tables include: `name` (required), `description` (optional), `display_name` (optional) — per Roadmap 1.2
+
+---
+
+## Section 1 — Schemas and Migrations [sonnet]
+
+### Continent schema (`Estratos.Entities.Continent`)
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `:id` | Primary key |
+| `name` | `:string` | Required |
+| `description` | `:string` | Optional |
+| `display_name` | `:string` | Optional — user-defined label |
+| `world_id` | `references(:worlds)` | Required FK |
+| `timestamps` | | `inserted_at`, `updated_at` |
+
+### Ocean schema (`Estratos.Entities.Ocean`)
+
+Same fields as Continent.
+
+### Pin schema (`Estratos.Pins.Pin`)
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `:id` | Primary key |
+| `entity_type` | `:string` | e.g. `"continent"`, `"ocean"` |
+| `entity_id` | `:integer` | ID of the referenced entity |
+| `map_id` | `references(:maps)` | Required FK |
+| `x` | `:float` | Normalized 0.0–1.0 |
+| `y` | `:float` | Normalized 0.0–1.0 |
+| `timestamps` | | `inserted_at`, `updated_at` |
+
+### Tasks
+
+- [x] Create migration for `continents` table with fields: name, description, display_name, world_id (FK to worlds)
+- [x] Create migration for `oceans` table with same fields as continents
+- [x] Create migration for `pins` table with fields: entity_type, entity_id, map_id (FK to maps), x, y — add composite index on `[entity_type, entity_id]` and index on `map_id`
+- [x] Create `Estratos.Entities.Continent` Ecto schema — `belongs_to :world`; changeset casts all fields, validates `name` and `world_id` required
+- [x] Create `Estratos.Entities.Ocean` Ecto schema — same structure as Continent
+- [x] Create `Estratos.Pins.Pin` Ecto schema — `belongs_to :map`; changeset casts all fields, validates required `entity_type`, `entity_id`, `map_id`, `x`, `y`; validates `x` and `y` are >= 0.0 and <= 1.0
+
+---
+
+## Section 2 — Context Functions [sonnet]
+
+### `Estratos.Entities` context
+
+- [ ] Add `create_continent(world, attrs)` — builds a continent with `world_id` set, inserts it
+- [ ] Add `get_continent!(id)` — `Repo.get!(Continent, id)`
+- [ ] Add `update_continent(continent, attrs)` — applies changeset and updates
+- [ ] Add `delete_continent(continent)` — calls `Pins.delete_pins_for_entity("continent", continent.id)`, then `Repo.delete(continent)`
+- [ ] Add `create_ocean(world, attrs)`, `get_ocean!(id)`, `update_ocean(ocean, attrs)`, `delete_ocean(ocean)` — same pattern as Continent, using `"ocean"` as entity_type
+
+### `Estratos.Pins` context
+
+- [ ] Add `create_pin(attrs)` — inserts a pin with entity_type, entity_id, map_id, x, y
+- [ ] Add `get_pin!(id)` — `Repo.get!(Pin, id)`
+- [ ] Add `list_pins_for_map(map)` — query all pins where `map_id == map.id`, ordered by `inserted_at asc`
+- [ ] Add `update_pin(pin, attrs)` — update pin position (x, y)
+- [ ] Add `delete_pin(pin)` — `Repo.delete(pin)`
+- [ ] Add `delete_pins_for_entity(entity_type, entity_id)` — `Repo.delete_all` matching entity_type + entity_id
+- [ ] Add `get_entity_for_pin(pin)` — pattern match on `pin.entity_type` to call `Entities.get_continent!/1` or `Entities.get_ocean!/1`
+
+### Tests
+
+- [ ] Test `create_continent/2` creates a continent with correct world_id
+- [ ] Test `create_continent/2` returns error changeset when name is missing
+- [ ] Test `update_continent/2` updates name and description
+- [ ] Test `delete_continent/1` deletes the continent from DB
+- [ ] Test `delete_continent/1` also deletes all pins referencing that continent
+- [ ] Test same CRUD operations for Ocean
+- [ ] Test `create_pin/1` creates a pin with valid normalized coordinates
+- [ ] Test `create_pin/1` rejects x or y outside 0.0–1.0 range
+- [ ] Test `list_pins_for_map/1` returns only pins for the given map
+- [ ] Test `list_pins_for_map/1` does not return pins from other maps
+- [ ] Test `update_pin/2` updates x and y coordinates
+- [ ] Test `delete_pin/1` deletes the pin but not the entity
+- [ ] Test `delete_pins_for_entity/2` deletes all pins matching entity_type + entity_id
+- [ ] Test `get_entity_for_pin/1` returns the correct continent or ocean
+
+---
+
+## Section 3 — Pin Placement UI [sonnet]
+
+- [ ] Add a `:pin_mode` boolean assign to socket, initialized to `false`
+- [ ] Add a pin toggle button in the navbar between the world dropdown and upload buttons — icon: `hero-map-pin-solid`, style: `btn-ghost` when off, `btn-active` when on
+- [ ] Add `handle_event("toggle_pin_mode")` — flips `:pin_mode`, clears any pending pin placement when toggling off
+- [ ] When `:pin_mode` is true, add CSS class `cursor-crosshair` to the map container
+- [ ] Add a JS hook (`.PinPlacement`) on the map container that listens for clicks when pin mode is on
+- [ ] On map click in pin mode: calculate normalized coordinates accounting for pan/zoom transform — `x = (click_x - container_x - translateX) / (container_width * scale)`, same for y
+- [ ] Push a `"pin_clicked"` event to the server with `%{x: normalized_x, y: normalized_y}`
+- [ ] Add `handle_event("pin_clicked", %{"x" => x, "y" => y})` — store pending pin position in socket assign `:pending_pin` as `%{x: x, y: y}`, open the pin creation modal
+- [ ] Add a `:pending_pin` assign (nil or `%{x, y}`), initialized to nil
+- [ ] Create a `pin_create_modal` component, shown when `:pending_pin` is not nil
+- [ ] Modal contains: a `<select>` dropdown with options "Continent" and "Ocean", an input for `name` (required), an input for `display_name` (optional), a textarea for `description` (optional), Save and Cancel buttons
+- [ ] Add `handle_event("save_pin", params)` — create the entity via `Entities.create_continent/2` or `create_ocean/2`, then create the pin via `Pins.create_pin/1` with the pending coordinates, clear `:pending_pin`, toggle pin mode off, reload pins list
+- [ ] Add `handle_event("cancel_pin")` — clear `:pending_pin`, keep pin mode on so user can try again
+- [ ] Render a temporary pin marker on the map at the pending position (same style as saved pins but slightly transparent) while the modal is open
+
+---
+
+## Section 4 — Pin Rendering on Map [sonnet]
+
+- [ ] Add `:pins` assign to socket, loaded via `Pins.list_pins_for_map(map)` on mount and after any map/world switch
+- [ ] For each pin, also load and cache the entity (name, type) — either preload in list query or load via `get_entity_for_pin/1`; store as a list of `%{pin: pin, entity: entity}` maps in the assign
+- [ ] Create a `map_pins` component that renders inside the map container, after the image
+- [ ] Each pin renders as an absolutely-positioned `<div>` with `style="left: #{pin.x * 100}%; top: #{pin.y * 100}%"` and `transform: translate(-50%, -100%)` to anchor at the pin tip
+- [ ] Pin icon: an SVG map pin (or `hero-map-pin-solid`) — continent pins get a green/earth color class, ocean pins get a blue color class
+- [ ] Pins must be children of a wrapper div that has the same CSS transform as the map image (translate + scale) so they pan/zoom together with the image
+- [ ] Pin size stays constant: apply `transform: scale(#{1/current_scale})` on each pin to counteract the zoom, OR render pins in a separate overlay that tracks position but doesn't scale
+- [ ] Add `phx-click="select_pin"` with `phx-value-id={pin.id}` on each pin element
+- [ ] Add `phx-mouseenter` / `phx-mouseleave` events (or CSS-only approach) for tooltip
+- [ ] Create a tooltip div per pin: hidden by default, shown on hover via CSS `group-hover`, positioned above the pin — contains entity name (bold, first line) and entity type (second line, smaller text)
+- [ ] Ensure pin clicks do NOT trigger the map click for pin placement (stop propagation in the JS hook)
+- [ ] Reload pins when switching maps (`select_map` event) or switching worlds (`select_world` event)
+
+---
+
+## Section 5 — Sidebar Panel [sonnet]
+
+- [ ] Add `:selected_pin` assign to socket (nil or `%{pin: pin, entity: entity}`), initialized to nil
+- [ ] Add `:sidebar_open` boolean assign, initialized to `false`
+- [ ] Create a `sidebar` component rendered inside the map area, on the left side, as an absolutely-positioned div
+- [ ] Sidebar width: `255px` when open, `0px` when closed (content hidden with `overflow-hidden`)
+- [ ] Add CSS transition: `transition-all duration-300` for smooth expand/collapse
+- [ ] Sidebar background: `bg-base-200` with a right border (`border-r border-base-content/10`)
+- [ ] Create the sidebar toggle button: a `<button>` element, 25px wide x 80px tall, positioned on the right edge of the sidebar (using `absolute right-0 translate-x-full`), vertically centered (`top-1/2 -translate-y-1/2`)
+- [ ] Toggle button styling: `bg-base-200 rounded-r-lg shadow-md border border-l-0 border-base-content/10`
+- [ ] Toggle button arrow: `hero-chevron-left-micro` when sidebar is open, `hero-chevron-right-micro` when closed
+- [ ] Toggle button disabled state: when `:selected_pin` is nil, button gets `opacity-30 cursor-not-allowed`, click does nothing
+- [ ] Toggle button hover preview: when a pin is selected and sidebar is collapsed, on hover transition the button width to reveal the pin name and type text next to the arrow (CSS `group-hover:w-auto` or similar transition)
+- [ ] Add `handle_event("toggle_sidebar")` — flips `:sidebar_open` if a pin is selected
+- [ ] Add `handle_event("select_pin", %{"id" => id})` — load the pin and its entity, set `:selected_pin`, set `:sidebar_open` to true
+- [ ] Add `handle_event("deselect_pin")` — set `:selected_pin` to nil, set `:sidebar_open` to false
+- [ ] On map background click (not on a pin): trigger `"deselect_pin"` to close sidebar — handle this in the JS hook by checking if click target is the map image or container (not a pin)
+
+---
+
+## Section 6 — Entity Detail View in Sidebar [sonnet]
+
+- [ ] Create an `entity_form` component rendered inside the sidebar when `:selected_pin` is not nil
+- [ ] The form uses DaisyUI `fieldset` with `fieldset-legend` for each field group
+- [ ] Use compact sizing throughout: `input-sm` for inputs, `textarea-sm` for textareas, `text-xs` for legends, `gap-2` between field groups
+- [ ] Add `:editing_fields` assign to socket — a MapSet of field names currently being edited (e.g., `MapSet.new(["description"])`)
+- [ ] Field: **Name** — `fieldset-legend` "Name", `input input-sm input-bordered w-full`, disabled unless field is in `:editing_fields` or value is empty
+- [ ] Field: **Display Name** — same pattern, legend "Display Name"
+- [ ] Field: **Description** — legend "Description", `textarea textarea-sm textarea-bordered w-full`, 2 rows
+- [ ] Field: **Position** — legend "Position", read-only text showing `"#{Float.round(x * 100, 1)}%, #{Float.round(y * 100, 1)}%"`, no edit button
+- [ ] Each editable field row is a flex container with the input taking `flex-1` and a small pencil button (`hero-pencil-square-micro`, `btn-ghost btn-xs`) on the right
+- [ ] Add `handle_event("toggle_field_edit", %{"field" => field_name})` — if field is in editing set: save the field value (call `update_continent/2` or `update_ocean/2`), remove from editing set; if field is not in editing set: add to editing set
+- [ ] When saving a field, send the field name and new value from the form — use `phx-value-field` and read the input value
+- [ ] Add `handle_event("save_field", %{"field" => field, "value" => value})` — update the entity, reload the selected_pin entity data
+- [ ] Empty fields auto-edit: in the template, check if the field value is nil or `""` — if so, render it as enabled (not disabled) without needing to click edit
+- [ ] Wrap the fields area in a scrollable div: `overflow-y-auto` with `flex-1` so it fills available space above the fixed bottom actions
+- [ ] The overall sidebar layout is a flex column: header (optional, entity type label), scrollable fields area (`flex-1 overflow-y-auto`), fixed bottom actions
+
+---
+
+## Section 7 — Pin Actions (Move and Delete) [sonnet]
+
+- [ ] Create a `sidebar_actions` component rendered at the bottom of the sidebar, inside a fixed/sticky container: `border-t border-base-content/10 p-2 bg-base-200 flex gap-2`
+- [ ] **Move Pin** button: `btn btn-outline btn-sm flex-1` with `hero-arrows-pointing-out-micro` icon and text "Move"
+- [ ] **Delete** button: `btn btn-error btn-outline btn-sm flex-1` with `hero-trash-micro` icon and text "Delete"
+- [ ] Add `:moving_pin` assign to socket (nil or `%{pin_id, original_x, original_y}`), initialized to nil
+- [ ] Add `handle_event("start_move_pin")` — store original position in `:moving_pin`, collapse the sidebar, change cursor to crosshair (reuse pin placement mode cursor logic)
+- [ ] In the JS hook: when `:moving_pin` is set, next map click calculates new normalized coords and pushes `"move_pin_to"` event with `%{x, y}`
+- [ ] Add `handle_event("move_pin_to", %{"x" => x, "y" => y})` — temporarily update the pin position in assigns (for visual feedback), set a `:confirm_move` assign with the new coordinates
+- [ ] Show a small confirmation modal: "Confirm new position?" with Confirm and Cancel buttons
+- [ ] Add `handle_event("confirm_move")` — call `Pins.update_pin(pin, %{x: new_x, y: new_y})`, clear `:moving_pin` and `:confirm_move`, reload pin data, reopen sidebar
+- [ ] Add `handle_event("cancel_move")` — restore pin to original position from `:moving_pin`, clear `:moving_pin` and `:confirm_move`, reopen sidebar
+- [ ] **Delete** button has `phx-confirm={"Delete this #{entity_type} and its pin? This cannot be undone."}`
+- [ ] Add `handle_event("delete_entity")` — call `Entities.delete_continent/1` or `delete_ocean/1` (which cascade-deletes pins), clear `:selected_pin`, set `:sidebar_open` to false, reload pins for current map
+
+---
+
+## Section 8 — Smoke Test [sonnet]
+
+- [ ] `make up` → app boots, map loads
+- [ ] Click the pin button in navbar → button appears pressed, cursor is crosshair on map
+- [ ] Click on the map → pin icon appears at click location, creation modal opens
+- [ ] Select "Continent", fill name, save → pin is saved, visible on map with green color
+- [ ] Hover over pin → tooltip shows name (bold) and "Continent" below
+- [ ] Click pin → sidebar expands from left (255px) showing continent details
+- [ ] Edit the name field via pencil icon → field becomes editable → click pencil again → saves
+- [ ] Empty description field is already editable without clicking pencil
+- [ ] Click sidebar toggle button → sidebar collapses, arrow flips
+- [ ] Hover toggle button with pin selected → button expands to show pin name
+- [ ] Click toggle again → sidebar reopens
+- [ ] Click "Move" → sidebar closes, cursor is crosshair → click new location → pin teleports → confirm modal → confirm → pin stays at new position
+- [ ] Repeat move but cancel → pin returns to original position
+- [ ] Click "Delete" → confirm → continent and pin removed, sidebar closes
+- [ ] Create an ocean pin → blue color pin, same full flow works
+- [ ] Switch maps → pins are scoped to each map (different maps show different pins)
+- [ ] Switch worlds → entities and pins belong to that world's maps
+- [ ] Pan/zoom the map → pins stay at correct relative positions on the image
+- [ ] Click map background (not a pin) → sidebar closes, pin deselected
+- [ ] `make test` → all tests pass
+
+---
+
+## Out of Scope
+
+- Layers and layer toggling (future issue)
+- Search / filtering pins
+- Multiple pins per entity
+- Pin clustering at low zoom
+- Pin drag-and-drop (we use "Move Pin" button + click-to-place instead)
+- Keyboard shortcuts for pin mode
+- Pin animations
+- Entity relationships (future issue)
+
+---
+
+## Done When
+
+- Continent and Ocean entities can be created with name, description, display_name
+- Pins can be placed on the map by clicking in pin placement mode
+- Pins render at the correct normalized position and stay correct during pan/zoom
+- Hovering a pin shows a tooltip with name and type
+- Clicking a pin opens a collapsible sidebar showing entity details
+- Entity fields can be edited inline (per-field edit toggle)
+- Pins can be moved to a new location with confirmation
+- Entities can be deleted (cascading to their pins)
+- All pins are scoped to their map
+- All entities are scoped to their world

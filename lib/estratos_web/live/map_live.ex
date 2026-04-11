@@ -3,6 +3,8 @@ defmodule EstratosWeb.MapLive do
 
   alias Estratos.Worlds
   alias Estratos.MapStorage
+  alias Estratos.Entities
+  alias Estratos.Pins
 
   @impl true
   def mount(_params, _session, socket) do
@@ -24,6 +26,8 @@ defmodule EstratosWeb.MapLive do
       |> assign(:editing_world, nil)
       |> assign(:naming_new_map, nil)
       |> assign(:pending_image, nil)
+      |> assign(:pin_mode, false)
+      |> assign(:pending_pin, nil)
       # max_entries: 2 allows selecting a replacement image while keeping the
       # current preview — validate cancels the older entry once the new one arrives.
       |> allow_upload(:map_image,
@@ -43,11 +47,12 @@ defmodule EstratosWeb.MapLive do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col h-full">
-      <.navbar world={@world} worlds={@worlds} uploads={@uploads} pending_image={@pending_image} />
-      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} />
+      <.navbar world={@world} worlds={@worlds} uploads={@uploads} pending_image={@pending_image} pin_mode={@pin_mode} />
+      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} pin_mode={@pin_mode} pending_pin={@pending_pin} />
       <Layouts.flash_group flash={@flash} />
       <.world_modal :if={@world_modal} world={@editing_world || @world} mode={@world_modal} />
       <.name_map_modal :if={@naming_new_map} />
+      <.pin_create_modal :if={@pending_pin} />
     </div>
     """
   end
@@ -141,6 +146,14 @@ defmodule EstratosWeb.MapLive do
           </script>
         </div>
       </div>
+      <button
+        type="button"
+        phx-click="toggle_pin_mode"
+        class={["btn btn-sm", if(@pin_mode, do: "btn-primary", else: "btn-ghost")]}
+        title={if(@pin_mode, do: "Exit pin mode", else: "Place a pin")}
+      >
+        <.icon name="hero-map-pin-solid" class="w-4 h-4" />
+      </button>
       <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form" phx-hook=".UploadForm">
         <button
           type="button"
@@ -339,6 +352,59 @@ defmodule EstratosWeb.MapLive do
     """
   end
 
+  defp pin_create_modal(assigns) do
+    ~H"""
+    <div class="modal modal-open modal-middle">
+      <div class="modal-box max-w-sm">
+        <h3 class="font-bold text-lg">New Pin</h3>
+        <form phx-submit="save_pin" phx-change="pin_type_changed" class="flex flex-col gap-4 mt-4" id="pin-create-form">
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Type</span></div>
+            <select name="pin_type" class="select select-bordered w-full" required>
+              <option value="continent">Continent</option>
+              <option value="ocean">Ocean</option>
+            </select>
+          </label>
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Name <span class="text-error">*</span></span></div>
+            <input
+              type="text"
+              name="name"
+              class="input input-bordered w-full"
+              placeholder="Required"
+              autofocus
+              required
+            />
+          </label>
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Display Name</span></div>
+            <input
+              type="text"
+              name="display_name"
+              class="input input-bordered w-full"
+              placeholder="Optional label"
+            />
+          </label>
+          <label class="form-control w-full">
+            <div class="label"><span class="label-text">Description</span></div>
+            <textarea
+              name="description"
+              class="textarea textarea-bordered w-full"
+              rows="2"
+              placeholder="Optional"
+            ></textarea>
+          </label>
+          <div class="modal-action">
+            <button type="button" phx-click="cancel_pin" class="btn">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Pin</button>
+          </div>
+        </form>
+      </div>
+      <div class="modal-backdrop" phx-click="cancel_pin"></div>
+    </div>
+    """
+  end
+
   defp name_map_modal(assigns) do
     ~H"""
     <div class="modal modal-open modal-middle">
@@ -372,11 +438,19 @@ defmodule EstratosWeb.MapLive do
     <main
       id="map-container"
       phx-hook=".MapContainer"
-      class="flex-1 overflow-hidden bg-base-300 select-none relative"
+      class={["flex-1 overflow-hidden bg-base-300 select-none relative", if(@pin_mode, do: "cursor-crosshair", else: "")]}
     >
       <.map_tabs maps={@maps} map={@map} renaming={@renaming} />
       <.map_actions :if={@map} map={@map} renaming={@renaming} />
       <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} pending_image={@pending_image} />
+      <%= if @pending_pin do %>
+        <div
+          class="absolute z-30 pointer-events-none opacity-60"
+          style={"left: #{@pending_pin.x * 100}%; top: #{@pending_pin.y * 100}%; transform: translate(-50%, -100%)"}
+        >
+          <.icon name="hero-map-pin-solid" class="w-8 h-8 text-primary drop-shadow" />
+        </div>
+      <% end %>
       <.zoom_controls />
     </main>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".MapContainer">
@@ -509,6 +583,23 @@ defmodule EstratosWeb.MapLive do
           this.el.addEventListener("map:zoom-out", () => this.zoomFromCenter(1 / 1.5))
           this.el.addEventListener("map:reset-view", () => this.reset())
 
+          // Pin placement: capture normalized coordinates on click
+          this.onPinClick = (e) => {
+            if (!this.el.classList.contains("cursor-crosshair")) return
+            // Ignore clicks on interactive elements (buttons, pins, etc.)
+            if (e.target.closest("button") || e.target.closest("[data-pin]")) return
+            e.stopPropagation()
+
+            const rect = this.el.getBoundingClientRect()
+            // Normalize relative to the container, accounting for pan/zoom transform
+            const rawX = e.clientX - rect.left
+            const rawY = e.clientY - rect.top
+            const x = Math.max(0, Math.min(1, (rawX - this.tx) / (rect.width * this.scale)))
+            const y = Math.max(0, Math.min(1, (rawY - this.ty) / (rect.height * this.scale)))
+            this.pushEvent("pin_clicked", { x, y })
+          }
+          this.el.addEventListener("click", this.onPinClick)
+
           this.syncUI()
         },
 
@@ -521,6 +612,7 @@ defmodule EstratosWeb.MapLive do
           this.el.removeEventListener("mousedown", this.onMouseDown)
           window.removeEventListener("mousemove", this.onMouseMove)
           window.removeEventListener("mouseup", this.onMouseUp)
+          this.el.removeEventListener("click", this.onPinClick)
         }
       }
     </script>
@@ -1001,5 +1093,78 @@ defmodule EstratosWeb.MapLive do
      socket
      |> assign(:image_broken, true)
      |> put_flash(:error, "Map image failed to load")}
+  end
+
+  # Pin mode
+
+  @impl true
+  def handle_event("toggle_pin_mode", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:pin_mode, !socket.assigns.pin_mode)
+     |> assign(:pending_pin, nil)}
+  end
+
+  @impl true
+  def handle_event("pin_clicked", %{"x" => x, "y" => y}, socket) do
+    if socket.assigns.pin_mode do
+      {:noreply, assign(socket, :pending_pin, %{x: x, y: y})}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("pin_type_changed", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("save_pin", params, socket) do
+    %{"pin_type" => pin_type, "name" => name} = params
+    description = Map.get(params, "description", "")
+    display_name = Map.get(params, "display_name", "")
+    pending = socket.assigns.pending_pin
+    world = socket.assigns.world
+    map = socket.assigns.map
+
+    entity_attrs = %{
+      name: String.trim(name),
+      description: if(description == "", do: nil, else: String.trim(description)),
+      display_name: if(display_name == "", do: nil, else: String.trim(display_name))
+    }
+
+    result =
+      case pin_type do
+        "continent" -> Entities.create_continent(world, entity_attrs)
+        "ocean" -> Entities.create_ocean(world, entity_attrs)
+      end
+
+    case result do
+      {:ok, entity} ->
+        {:ok, _pin} =
+          Pins.create_pin(%{
+            entity_type: pin_type,
+            entity_id: entity.id,
+            map_id: map.id,
+            x: pending.x,
+            y: pending.y
+          })
+
+        {:noreply,
+         socket
+         |> assign(:pending_pin, nil)
+         |> assign(:pin_mode, false)}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to save pin — name is required")}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_pin", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:pending_pin, nil)}
   end
 end

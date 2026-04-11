@@ -99,20 +99,20 @@ Same fields as Continent.
 
 ## Section 3 — Pin Placement UI [sonnet]
 
-- [ ] Add a `:pin_mode` boolean assign to socket, initialized to `false`
-- [ ] Add a pin toggle button in the navbar between the world dropdown and upload buttons — icon: `hero-map-pin-solid`, style: `btn-ghost` when off, `btn-active` when on
-- [ ] Add `handle_event("toggle_pin_mode")` — flips `:pin_mode`, clears any pending pin placement when toggling off
-- [ ] When `:pin_mode` is true, add CSS class `cursor-crosshair` to the map container
-- [ ] Add a JS hook (`.PinPlacement`) on the map container that listens for clicks when pin mode is on
-- [ ] On map click in pin mode: calculate normalized coordinates accounting for pan/zoom transform — `x = (click_x - container_x - translateX) / (container_width * scale)`, same for y
-- [ ] Push a `"pin_clicked"` event to the server with `%{x: normalized_x, y: normalized_y}`
-- [ ] Add `handle_event("pin_clicked", %{"x" => x, "y" => y})` — store pending pin position in socket assign `:pending_pin` as `%{x: x, y: y}`, open the pin creation modal
-- [ ] Add a `:pending_pin` assign (nil or `%{x, y}`), initialized to nil
-- [ ] Create a `pin_create_modal` component, shown when `:pending_pin` is not nil
-- [ ] Modal contains: a `<select>` dropdown with options "Continent" and "Ocean", an input for `name` (required), an input for `display_name` (optional), a textarea for `description` (optional), Save and Cancel buttons
-- [ ] Add `handle_event("save_pin", params)` — create the entity via `Entities.create_continent/2` or `create_ocean/2`, then create the pin via `Pins.create_pin/1` with the pending coordinates, clear `:pending_pin`, toggle pin mode off, reload pins list
-- [ ] Add `handle_event("cancel_pin")` — clear `:pending_pin`, keep pin mode on so user can try again
-- [ ] Render a temporary pin marker on the map at the pending position (same style as saved pins but slightly transparent) while the modal is open
+- [x] Add a `:pin_mode` boolean assign to socket, initialized to `false`
+- [x] Add a pin toggle button in the navbar between the world dropdown and upload buttons — icon: `hero-map-pin-solid`, style: `btn-ghost` when off, `btn-active` when on
+- [x] Add `handle_event("toggle_pin_mode")` — flips `:pin_mode`, clears any pending pin placement when toggling off
+- [x] When `:pin_mode` is true, add CSS class `cursor-crosshair` to the map container
+- [x] Add a JS hook (`.PinPlacement`) on the map container that listens for clicks when pin mode is on
+- [x] On map click in pin mode: calculate normalized coordinates accounting for pan/zoom transform — `x = (click_x - container_x - translateX) / (container_width * scale)`, same for y
+- [x] Push a `"pin_clicked"` event to the server with `%{x: normalized_x, y: normalized_y}`
+- [x] Add `handle_event("pin_clicked", %{"x" => x, "y" => y})` — store pending pin position in socket assign `:pending_pin` as `%{x: x, y: y}`, open the pin creation modal
+- [x] Add a `:pending_pin` assign (nil or `%{x, y}`), initialized to nil
+- [x] Create a `pin_create_modal` component, shown when `:pending_pin` is not nil
+- [x] Modal contains: a `<select>` dropdown with options "Continent" and "Ocean", an input for `name` (required), an input for `display_name` (optional), a textarea for `description` (optional), Save and Cancel buttons
+- [x] Add `handle_event("save_pin", params)` — create the entity via `Entities.create_continent/2` or `create_ocean/2`, then create the pin via `Pins.create_pin/1` with the pending coordinates, clear `:pending_pin`, toggle pin mode off, reload pins list
+- [x] Add `handle_event("cancel_pin")` — clear `:pending_pin`, keep pin mode on so user can try again
+- [x] Render a temporary pin marker on the map at the pending position (same style as saved pins but slightly transparent) while the modal is open
 
 ---
 

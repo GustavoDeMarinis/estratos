@@ -62,38 +62,38 @@ Same fields as Continent.
 
 ### `Estratos.Entities` context
 
-- [ ] Add `create_continent(world, attrs)` — builds a continent with `world_id` set, inserts it
-- [ ] Add `get_continent!(id)` — `Repo.get!(Continent, id)`
-- [ ] Add `update_continent(continent, attrs)` — applies changeset and updates
-- [ ] Add `delete_continent(continent)` — calls `Pins.delete_pins_for_entity("continent", continent.id)`, then `Repo.delete(continent)`
-- [ ] Add `create_ocean(world, attrs)`, `get_ocean!(id)`, `update_ocean(ocean, attrs)`, `delete_ocean(ocean)` — same pattern as Continent, using `"ocean"` as entity_type
+- [x] Add `create_continent(world, attrs)` — builds a continent with `world_id` set, inserts it
+- [x] Add `get_continent!(id)` — `Repo.get!(Continent, id)`
+- [x] Add `update_continent(continent, attrs)` — applies changeset and updates
+- [x] Add `delete_continent(continent)` — calls `Pins.delete_pins_for_entity("continent", continent.id)`, then `Repo.delete(continent)`
+- [x] Add `create_ocean(world, attrs)`, `get_ocean!(id)`, `update_ocean(ocean, attrs)`, `delete_ocean(ocean)` — same pattern as Continent, using `"ocean"` as entity_type
 
 ### `Estratos.Pins` context
 
-- [ ] Add `create_pin(attrs)` — inserts a pin with entity_type, entity_id, map_id, x, y
-- [ ] Add `get_pin!(id)` — `Repo.get!(Pin, id)`
-- [ ] Add `list_pins_for_map(map)` — query all pins where `map_id == map.id`, ordered by `inserted_at asc`
-- [ ] Add `update_pin(pin, attrs)` — update pin position (x, y)
-- [ ] Add `delete_pin(pin)` — `Repo.delete(pin)`
-- [ ] Add `delete_pins_for_entity(entity_type, entity_id)` — `Repo.delete_all` matching entity_type + entity_id
-- [ ] Add `get_entity_for_pin(pin)` — pattern match on `pin.entity_type` to call `Entities.get_continent!/1` or `Entities.get_ocean!/1`
+- [x] Add `create_pin(attrs)` — inserts a pin with entity_type, entity_id, map_id, x, y
+- [x] Add `get_pin!(id)` — `Repo.get!(Pin, id)`
+- [x] Add `list_pins_for_map(map)` — query all pins where `map_id == map.id`, ordered by `inserted_at asc`
+- [x] Add `update_pin(pin, attrs)` — update pin position (x, y)
+- [x] Add `delete_pin(pin)` — `Repo.delete(pin)`
+- [x] Add `delete_pins_for_entity(entity_type, entity_id)` — `Repo.delete_all` matching entity_type + entity_id
+- [x] Add `get_entity_for_pin(pin)` — pattern match on `pin.entity_type` to call `Entities.get_continent!/1` or `Entities.get_ocean!/1`
 
 ### Tests
 
-- [ ] Test `create_continent/2` creates a continent with correct world_id
-- [ ] Test `create_continent/2` returns error changeset when name is missing
-- [ ] Test `update_continent/2` updates name and description
-- [ ] Test `delete_continent/1` deletes the continent from DB
-- [ ] Test `delete_continent/1` also deletes all pins referencing that continent
-- [ ] Test same CRUD operations for Ocean
-- [ ] Test `create_pin/1` creates a pin with valid normalized coordinates
-- [ ] Test `create_pin/1` rejects x or y outside 0.0–1.0 range
-- [ ] Test `list_pins_for_map/1` returns only pins for the given map
-- [ ] Test `list_pins_for_map/1` does not return pins from other maps
-- [ ] Test `update_pin/2` updates x and y coordinates
-- [ ] Test `delete_pin/1` deletes the pin but not the entity
-- [ ] Test `delete_pins_for_entity/2` deletes all pins matching entity_type + entity_id
-- [ ] Test `get_entity_for_pin/1` returns the correct continent or ocean
+- [x] Test `create_continent/2` creates a continent with correct world_id
+- [x] Test `create_continent/2` returns error changeset when name is missing
+- [x] Test `update_continent/2` updates name and description
+- [x] Test `delete_continent/1` deletes the continent from DB
+- [x] Test `delete_continent/1` also deletes all pins referencing that continent
+- [x] Test same CRUD operations for Ocean
+- [x] Test `create_pin/1` creates a pin with valid normalized coordinates
+- [x] Test `create_pin/1` rejects x or y outside 0.0–1.0 range
+- [x] Test `list_pins_for_map/1` returns only pins for the given map
+- [x] Test `list_pins_for_map/1` does not return pins from other maps
+- [x] Test `update_pin/2` updates x and y coordinates
+- [x] Test `delete_pin/1` deletes the pin but not the entity
+- [x] Test `delete_pins_for_entity/2` deletes all pins matching entity_type + entity_id
+- [x] Test `get_entity_for_pin/1` returns the correct continent or ocean
 
 ---
 

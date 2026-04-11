@@ -56,7 +56,7 @@ defmodule EstratosWeb.MapLive do
     ~H"""
     <div class="flex flex-col h-full">
       <.navbar world={@world} worlds={@worlds} uploads={@uploads} pending_image={@pending_image} pin_mode={@pin_mode} />
-      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} pin_mode={@pin_mode} pending_pin={@pending_pin} pins={@pins} selected_pin={@selected_pin} sidebar_open={@sidebar_open} />
+      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} pin_mode={@pin_mode} pending_pin={@pending_pin} pins={@pins} selected_pin={@selected_pin} sidebar_open={@sidebar_open} field_values={@field_values} editing_fields={@editing_fields} />
       <Layouts.flash_group flash={@flash} />
       <.world_modal :if={@world_modal} world={@editing_world || @world} mode={@world_modal} />
       <.name_map_modal :if={@naming_new_map} />
@@ -281,7 +281,7 @@ defmodule EstratosWeb.MapLive do
         <h3 class="font-bold text-lg">New World</h3>
         <form phx-submit="create_world" class="flex flex-col gap-4 mt-4">
           <label class="form-control w-full">
-            <div class="label"><span class="label-text">Name</span></div>
+            <div class="label"><span class="label-text text-[13px]">Name</span></div>
             <input
               type="text"
               name="name"
@@ -293,7 +293,7 @@ defmodule EstratosWeb.MapLive do
             />
           </label>
           <label class="form-control w-full">
-            <div class="label"><span class="label-text">Description</span></div>
+            <div class="label"><span class="label-text text-[13px]">Description</span></div>
             <textarea
               name="description"
               class="textarea textarea-bordered w-full"
@@ -319,7 +319,7 @@ defmodule EstratosWeb.MapLive do
         <h3 class="font-bold text-lg">Edit World</h3>
         <form phx-submit="rename_world" class="flex flex-col gap-4 mt-4">
           <label class="form-control w-full">
-            <div class="label"><span class="label-text">Name</span></div>
+            <div class="label"><span class="label-text text-[13px]">Name</span></div>
             <input
               type="text"
               name="name"
@@ -330,7 +330,7 @@ defmodule EstratosWeb.MapLive do
             />
           </label>
           <label class="form-control w-full">
-            <div class="label"><span class="label-text">Description</span></div>
+            <div class="label"><span class="label-text text-[13px]">Description</span></div>
             <textarea
               name="description"
               class="textarea textarea-bordered w-full"
@@ -367,14 +367,14 @@ defmodule EstratosWeb.MapLive do
         <h3 class="font-bold text-lg">New Pin</h3>
         <form phx-submit="save_pin" phx-change="pin_type_changed" class="flex flex-col gap-4 mt-4" id="pin-create-form">
           <label class="form-control w-full">
-            <div class="label"><span class="label-text">Type</span></div>
+            <div class="label"><span class="label-text text-[13px]">Type</span></div>
             <select name="pin_type" class="select select-bordered w-full" required>
               <option value="continent">Continent</option>
               <option value="ocean">Ocean</option>
             </select>
           </label>
           <label class="form-control w-full">
-            <div class="label"><span class="label-text">Name <span class="text-error">*</span></span></div>
+            <div class="label"><span class="label-text text-[13px]">Name <span class="text-error">*</span></span></div>
             <input
               type="text"
               name="name"
@@ -385,7 +385,7 @@ defmodule EstratosWeb.MapLive do
             />
           </label>
           <label class="form-control w-full">
-            <div class="label"><span class="label-text">Display Name</span></div>
+            <div class="label"><span class="label-text text-[13px]">Display Name</span></div>
             <input
               type="text"
               name="display_name"
@@ -394,7 +394,7 @@ defmodule EstratosWeb.MapLive do
             />
           </label>
           <label class="form-control w-full">
-            <div class="label"><span class="label-text">Description</span></div>
+            <div class="label"><span class="label-text text-[13px]">Description</span></div>
             <textarea
               name="description"
               class="textarea textarea-bordered w-full"
@@ -420,7 +420,7 @@ defmodule EstratosWeb.MapLive do
         <h3 class="font-bold text-lg">Name your map</h3>
         <form phx-submit="confirm_new_map" class="flex flex-col gap-4 mt-4">
           <label class="form-control w-full">
-            <div class="label"><span class="label-text">Map name</span></div>
+            <div class="label"><span class="label-text text-[13px]">Map name</span></div>
             <input
               type="text"
               name="name"
@@ -443,16 +443,14 @@ defmodule EstratosWeb.MapLive do
 
   defp entity_form(assigns) do
     ~H"""
-    <div class="flex flex-col gap-3">
+    <form phx-change="sync_field_value" phx-debounce="blur" class="flex flex-col gap-3">
       <%!-- Name field --%>
       <fieldset class="flex flex-col gap-1">
-        <legend class="text-xs uppercase tracking-wide text-base-content/40">Name</legend>
+        <legend class="text-[10px] uppercase tracking-wide text-base-content/40">Name</legend>
         <div class="flex items-center gap-2">
           <input
             type="text"
             name="name"
-            phx-change="sync_field_value"
-            phx-value-field="name"
             value={@field_values["name"]}
             class="input input-sm input-bordered w-full flex-1"
             disabled={!MapSet.member?(@editing_fields, "name") and @field_values["name"] != ""}
@@ -470,13 +468,11 @@ defmodule EstratosWeb.MapLive do
 
       <%!-- Display Name field --%>
       <fieldset class="flex flex-col gap-1">
-        <legend class="text-xs uppercase tracking-wide text-base-content/40">Display Name</legend>
+        <legend class="text-[10px] uppercase tracking-wide text-base-content/40">Display Name</legend>
         <div class="flex items-center gap-2">
           <input
             type="text"
             name="display_name"
-            phx-change="sync_field_value"
-            phx-value-field="display_name"
             value={@field_values["display_name"]}
             class="input input-sm input-bordered w-full flex-1"
             disabled={!MapSet.member?(@editing_fields, "display_name") and @field_values["display_name"] != ""}
@@ -494,14 +490,12 @@ defmodule EstratosWeb.MapLive do
 
       <%!-- Description field --%>
       <fieldset class="flex flex-col gap-1">
-        <legend class="text-xs uppercase tracking-wide text-base-content/40">Description</legend>
+        <legend class="text-[10px] uppercase tracking-wide text-base-content/40">Description</legend>
         <div class="flex items-start gap-2">
           <textarea
             name="description"
-            phx-change="sync_field_value"
-            phx-value-field="description"
             rows="2"
-            class="textarea textarea-sm textarea-bordered w-full flex-1"
+            class="textarea textarea-sm textarea-bordered w-full flex-1 !resize-none"
             disabled={!MapSet.member?(@editing_fields, "description") and @field_values["description"] != ""}
           ><%= @field_values["description"] %></textarea>
           <button
@@ -517,18 +511,18 @@ defmodule EstratosWeb.MapLive do
 
       <%!-- Position field (read-only) --%>
       <fieldset class="flex flex-col gap-1">
-        <legend class="text-xs uppercase tracking-wide text-base-content/40">Position</legend>
+        <legend class="text-[10px] uppercase tracking-wide text-base-content/40">Position</legend>
         <p class="text-sm text-base-content/70">
           <%= Float.round(@selected_pin.pin.x * 100, 1) %>%, <%= Float.round(@selected_pin.pin.y * 100, 1) %>%
         </p>
       </fieldset>
-    </div>
+    </form>
     """
   end
 
   defp sidebar(assigns) do
     ~H"""
-    <div class="absolute left-0 top-0 h-full z-20 flex items-stretch">
+    <div data-sidebar class="absolute left-0 top-0 h-full z-20 flex items-stretch">
       <%!-- Content panel — width transitions between 0 and 255px --%>
       <div class={[
         "overflow-hidden transition-all duration-300 bg-base-200 border-r border-base-content/10 flex flex-col",
@@ -639,7 +633,7 @@ defmodule EstratosWeb.MapLive do
       <.map_actions :if={@map} map={@map} renaming={@renaming} />
       <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} pending_image={@pending_image} />
       <.map_pins pins={@pins} pending_pin={@pending_pin} />
-      <.sidebar selected_pin={@selected_pin} sidebar_open={@sidebar_open} />
+      <.sidebar selected_pin={@selected_pin} sidebar_open={@sidebar_open} field_values={@field_values} editing_fields={@editing_fields} />
       <.zoom_controls />
     </main>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".MapContainer">
@@ -787,9 +781,11 @@ defmodule EstratosWeb.MapLive do
             const onPin = !!e.target.closest("[data-pin]")
             const onButton = !!e.target.closest("button")
 
+            const onSidebar = !!e.target.closest("[data-sidebar]")
+
             if (this.el.classList.contains("cursor-crosshair")) {
               // Pin placement mode — place pin on background click
-              if (onButton || onPin) return
+              if (onButton || onPin || onSidebar) return
               e.stopPropagation()
 
               const rect = this.el.getBoundingClientRect()
@@ -800,7 +796,7 @@ defmodule EstratosWeb.MapLive do
               this.pushEvent("pin_clicked", { x, y })
             } else {
               // Normal mode — background click deselects current pin
-              if (!onPin && !onButton) {
+              if (!onPin && !onButton && !onSidebar) {
                 this.pushEvent("deselect_pin", {})
               }
             }
@@ -1440,7 +1436,8 @@ defmodule EstratosWeb.MapLive do
   end
 
   @impl true
-  def handle_event("sync_field_value", %{"field" => field, "value" => value}, socket) do
+  def handle_event("sync_field_value", %{"_target" => [field]} = params, socket) do
+    value = params[field] || ""
     field_values = Map.put(socket.assigns.field_values, field, value)
     {:noreply, assign(socket, :field_values, field_values)}
   end

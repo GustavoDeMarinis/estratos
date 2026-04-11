@@ -56,9 +56,10 @@ defmodule EstratosWeb.MapLive.Sidebar do
           />
         </span>
         <%!-- Hover preview — only shown when a pin is selected and sidebar is collapsed --%>
+        <%!-- Delay 300ms to avoid showing while sidebar transition is in progress --%>
         <%= if @selected_pin && !@sidebar_open do %>
-          <span class="max-w-0 group-hover:max-w-[150px] overflow-hidden transition-all duration-200 group-hover:pr-2 text-left whitespace-nowrap">
-            <span class="text-xs font-bold leading-tight block"><%= @selected_pin.entity.name %></span>
+          <span class="max-w-0 group-hover:max-w-[150px] overflow-hidden transition-all duration-200 delay-300 group-hover:delay-0 group-hover:pr-2 text-left whitespace-nowrap">
+            <span class="text-xs font-bold leading-tight block"><%= @selected_pin.entity.display_name || @selected_pin.entity.name %></span>
             <span class="text-xs opacity-60 leading-tight capitalize block"><%= @selected_pin.pin.entity_type %></span>
           </span>
         <% end %>
@@ -101,7 +102,7 @@ defmodule EstratosWeb.MapLive.Sidebar do
 
   defp entity_form(assigns) do
     ~H"""
-    <form phx-change="sync_field_value" phx-debounce="blur" class="flex flex-col gap-3">
+    <form phx-change="sync_field_value" class="flex flex-col gap-3">
       <%!-- Name field --%>
       <fieldset class="flex flex-col gap-1">
         <legend class="text-[10px] uppercase tracking-wide text-base-content/40">Name</legend>

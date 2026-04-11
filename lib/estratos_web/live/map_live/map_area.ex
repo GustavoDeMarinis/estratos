@@ -236,7 +236,7 @@ defmodule EstratosWeb.MapLive.MapArea do
         />
         <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block pointer-events-none z-10">
           <div class="bg-base-100 border border-base-content/20 rounded-lg shadow-lg px-2 py-1.5 text-center whitespace-nowrap">
-            <p class="text-xs font-bold"><%= entity.name %></p>
+            <p class="text-xs font-bold"><%= entity.display_name || entity.name %></p>
             <p class="text-xs opacity-60 capitalize"><%= pin.entity_type %></p>
           </div>
         </div>

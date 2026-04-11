@@ -200,11 +200,6 @@ export default {
         } else {
           this.pushEvent("pin_clicked", { x, y })
         }
-      } else {
-        // Normal mode — background click deselects current pin
-        if (!onPin && !onButton && !onSidebar) {
-          this.pushEvent("deselect_pin", {})
-        }
       }
     }
     this.el.addEventListener("click", this.onPinClick)

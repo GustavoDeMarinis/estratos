@@ -118,18 +118,18 @@ Same fields as Continent.
 
 ## Section 4 — Pin Rendering on Map [sonnet]
 
-- [ ] Add `:pins` assign to socket, loaded via `Pins.list_pins_for_map(map)` on mount and after any map/world switch
-- [ ] For each pin, also load and cache the entity (name, type) — either preload in list query or load via `get_entity_for_pin/1`; store as a list of `%{pin: pin, entity: entity}` maps in the assign
-- [ ] Create a `map_pins` component that renders inside the map container, after the image
-- [ ] Each pin renders as an absolutely-positioned `<div>` with `style="left: #{pin.x * 100}%; top: #{pin.y * 100}%"` and `transform: translate(-50%, -100%)` to anchor at the pin tip
-- [ ] Pin icon: an SVG map pin (or `hero-map-pin-solid`) — continent pins get a green/earth color class, ocean pins get a blue color class
-- [ ] Pins must be children of a wrapper div that has the same CSS transform as the map image (translate + scale) so they pan/zoom together with the image
-- [ ] Pin size stays constant: apply `transform: scale(#{1/current_scale})` on each pin to counteract the zoom, OR render pins in a separate overlay that tracks position but doesn't scale
-- [ ] Add `phx-click="select_pin"` with `phx-value-id={pin.id}` on each pin element
-- [ ] Add `phx-mouseenter` / `phx-mouseleave` events (or CSS-only approach) for tooltip
-- [ ] Create a tooltip div per pin: hidden by default, shown on hover via CSS `group-hover`, positioned above the pin — contains entity name (bold, first line) and entity type (second line, smaller text)
-- [ ] Ensure pin clicks do NOT trigger the map click for pin placement (stop propagation in the JS hook)
-- [ ] Reload pins when switching maps (`select_map` event) or switching worlds (`select_world` event)
+- [x] Add `:pins` assign to socket, loaded via `Pins.list_pins_for_map(map)` on mount and after any map/world switch
+- [x] For each pin, also load and cache the entity (name, type) — either preload in list query or load via `get_entity_for_pin/1`; store as a list of `%{pin: pin, entity: entity}` maps in the assign
+- [x] Create a `map_pins` component that renders inside the map container, after the image
+- [x] Each pin renders as an absolutely-positioned `<div>` with `style="left: #{pin.x * 100}%; top: #{pin.y * 100}%"` and `transform: translate(-50%, -100%)` to anchor at the pin tip
+- [x] Pin icon: an SVG map pin (or `hero-map-pin-solid`) — continent pins get a green/earth color class, ocean pins get a blue color class
+- [x] Pins must be children of a wrapper div that has the same CSS transform as the map image (translate + scale) so they pan/zoom together with the image
+- [x] Pin size stays constant: apply `transform: scale(#{1/current_scale})` on each pin to counteract the zoom via JS hook `applyTransform`
+- [x] Add `phx-click="select_pin"` with `phx-value-id={pin.id}` on each pin element
+- [x] Add CSS-only tooltip on hover (`group-hover`) for tooltip
+- [x] Create a tooltip div per pin: hidden by default, shown on hover via CSS `group-hover`, positioned above the pin — contains entity name (bold, first line) and entity type (second line, smaller text)
+- [x] Ensure pin clicks do NOT trigger the map click for pin placement (stop propagation in the JS hook via `data-pin` check)
+- [x] Reload pins when switching maps (`select_map` event) or switching worlds (`select_world` event)
 
 ---
 

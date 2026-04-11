@@ -28,6 +28,10 @@ defmodule EstratosWeb.MapLive do
       |> assign(:pending_image, nil)
       |> assign(:pin_mode, false)
       |> assign(:pending_pin, nil)
+      |> assign(:pins, [])
+      |> assign(:selected_pin, nil)
+      |> assign(:sidebar_open, false)
+      |> load_pins()
       # max_entries: 2 allows selecting a replacement image while keeping the
       # current preview — validate cancels the older entry once the new one arrives.
       |> allow_upload(:map_image,
@@ -48,7 +52,7 @@ defmodule EstratosWeb.MapLive do
     ~H"""
     <div class="flex flex-col h-full">
       <.navbar world={@world} worlds={@worlds} uploads={@uploads} pending_image={@pending_image} pin_mode={@pin_mode} />
-      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} pin_mode={@pin_mode} pending_pin={@pending_pin} />
+      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} pin_mode={@pin_mode} pending_pin={@pending_pin} pins={@pins} />
       <Layouts.flash_group flash={@flash} />
       <.world_modal :if={@world_modal} world={@editing_world || @world} mode={@world_modal} />
       <.name_map_modal :if={@naming_new_map} />
@@ -433,24 +437,60 @@ defmodule EstratosWeb.MapLive do
     """
   end
 
+  defp map_pins(assigns) do
+    ~H"""
+    <div
+      data-pins-overlay
+      class="absolute inset-0 pointer-events-none"
+      style="transform-origin: 0 0"
+    >
+      <div
+        :if={@pending_pin}
+        data-pending-pin
+        class="absolute pointer-events-none opacity-60"
+        style={"left: #{@pending_pin.x * 100}%; top: #{@pending_pin.y * 100}%; transform: translate(-50%, -100%)"}
+      >
+        <.icon name="hero-map-pin-solid" class="w-7 h-7 text-primary drop-shadow" />
+      </div>
+      <div
+        :for={%{pin: pin, entity: entity} <- @pins}
+        data-pin
+        phx-click="select_pin"
+        phx-value-id={pin.id}
+        class="absolute pointer-events-auto group cursor-pointer"
+        style={"left: #{pin.x * 100}%; top: #{pin.y * 100}%; transform: translate(-50%, -100%)"}
+      >
+        <.icon
+          name="hero-map-pin-solid"
+          class={"w-7 h-7 drop-shadow #{pin_color_class(pin.entity_type)}"}
+        />
+        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block pointer-events-none z-10">
+          <div class="bg-base-100 border border-base-content/20 rounded-lg shadow-lg px-2 py-1.5 text-center whitespace-nowrap">
+            <p class="text-xs font-bold"><%= entity.name %></p>
+            <p class="text-xs opacity-60 capitalize"><%= pin.entity_type %></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp pin_color_class("continent"), do: "text-green-500"
+  defp pin_color_class("ocean"), do: "text-blue-500"
+  defp pin_color_class(_), do: "text-base-content"
+
   defp map_viewport(assigns) do
     ~H"""
     <main
       id="map-container"
       phx-hook=".MapContainer"
+      data-map-id={if @map, do: to_string(@map.id), else: ""}
       class={["flex-1 overflow-hidden bg-base-300 select-none relative", if(@pin_mode, do: "cursor-crosshair", else: "")]}
     >
       <.map_tabs maps={@maps} map={@map} renaming={@renaming} />
       <.map_actions :if={@map} map={@map} renaming={@renaming} />
       <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} pending_image={@pending_image} />
-      <%= if @pending_pin do %>
-        <div
-          class="absolute z-30 pointer-events-none opacity-60"
-          style={"left: #{@pending_pin.x * 100}%; top: #{@pending_pin.y * 100}%; transform: translate(-50%, -100%)"}
-        >
-          <.icon name="hero-map-pin-solid" class="w-8 h-8 text-primary drop-shadow" />
-        </div>
-      <% end %>
+      <.map_pins pins={@pins} pending_pin={@pending_pin} />
       <.zoom_controls />
     </main>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".MapContainer">
@@ -467,12 +507,22 @@ defmodule EstratosWeb.MapLive do
           const MAX_SCALE = 10
 
           this.img = () => this.el.querySelector("img")
+          this.pinsOverlay = () => this.el.querySelector("[data-pins-overlay]")
 
           this.applyTransform = () => {
             const img = this.img()
             if (!img) return
             img.style.transformOrigin = "0 0"
             img.style.transform = `translate(${this.tx}px, ${this.ty}px) scale(${this.scale})`
+
+            const overlay = this.pinsOverlay()
+            if (overlay) {
+              overlay.style.transformOrigin = "0 0"
+              overlay.style.transform = `translate(${this.tx}px, ${this.ty}px) scale(${this.scale})`
+              overlay.querySelectorAll("[data-pin],[data-pending-pin]").forEach(pin => {
+                pin.style.transform = `translate(-50%, -100%) scale(${1 / this.scale})`
+              })
+            }
           }
 
           this.reset = () => {
@@ -600,11 +650,19 @@ defmodule EstratosWeb.MapLive do
           }
           this.el.addEventListener("click", this.onPinClick)
 
+          this._lastMapId = this.el.dataset.mapId
           this.syncUI()
         },
 
         updated() {
-          this.reset()
+          const mapId = this.el.dataset.mapId
+          if (mapId !== this._lastMapId) {
+            this._lastMapId = mapId
+            this.reset()
+          } else {
+            // Re-apply transform so newly rendered pins get correct position
+            this.applyTransform()
+          }
         },
 
         destroyed() {
@@ -723,6 +781,21 @@ defmodule EstratosWeb.MapLive do
   # Helpers
   # ---------------------------------------------------------------------------
 
+  defp load_pins(socket) do
+    case socket.assigns.map do
+      nil ->
+        assign(socket, :pins, [])
+
+      map ->
+        pin_data =
+          map
+          |> Pins.list_pins_for_map()
+          |> Enum.map(fn pin -> %{pin: pin, entity: Pins.get_entity_for_pin(pin)} end)
+
+        assign(socket, :pins, pin_data)
+    end
+  end
+
   defp clear_pending(socket) do
     socket =
       socket.assigns.uploads.map_image.entries
@@ -791,7 +864,8 @@ defmodule EstratosWeb.MapLive do
      |> clear_pending()
      |> assign(:map, map)
      |> assign(:image_broken, image_broken?(map))
-     |> assign(:renaming, false)}
+     |> assign(:renaming, false)
+     |> load_pins()}
   end
 
   @impl true
@@ -985,7 +1059,8 @@ defmodule EstratosWeb.MapLive do
      |> assign(:map, nil)
      |> assign(:image_broken, false)
      |> assign(:renaming, false)
-     |> assign(:world_modal, nil)}
+     |> assign(:world_modal, nil)
+     |> load_pins()}
   end
 
   # World deletion
@@ -1010,7 +1085,8 @@ defmodule EstratosWeb.MapLive do
      |> assign(:image_broken, image_broken?(map))
      |> assign(:renaming, false)
      |> assign(:editing_world, nil)
-     |> assign(:world_modal, nil)}
+     |> assign(:world_modal, nil)
+     |> load_pins()}
   end
 
   # World switching
@@ -1028,7 +1104,8 @@ defmodule EstratosWeb.MapLive do
      |> assign(:maps, maps)
      |> assign(:map, map)
      |> assign(:image_broken, image_broken?(map))
-     |> assign(:renaming, false)}
+     |> assign(:renaming, false)
+     |> load_pins()}
   end
 
   # Map renaming
@@ -1154,7 +1231,8 @@ defmodule EstratosWeb.MapLive do
         {:noreply,
          socket
          |> assign(:pending_pin, nil)
-         |> assign(:pin_mode, false)}
+         |> assign(:pin_mode, false)
+         |> load_pins()}
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to save pin — name is required")}
@@ -1166,5 +1244,17 @@ defmodule EstratosWeb.MapLive do
     {:noreply,
      socket
      |> assign(:pending_pin, nil)}
+  end
+
+  # Stub — full implementation in Section 5
+
+  @impl true
+  def handle_event("select_pin", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("deselect_pin", _params, socket) do
+    {:noreply, socket}
   end
 end

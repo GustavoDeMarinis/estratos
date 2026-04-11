@@ -31,6 +31,8 @@ defmodule EstratosWeb.MapLive do
       |> assign(:pins, [])
       |> assign(:selected_pin, nil)
       |> assign(:sidebar_open, false)
+      |> assign(:field_values, %{})
+      |> assign(:editing_fields, MapSet.new())
       |> load_pins()
       # max_entries: 2 allows selecting a replacement image while keeping the
       # current preview — validate cancels the older entry once the new one arrives.
@@ -437,6 +439,91 @@ defmodule EstratosWeb.MapLive do
     """
   end
 
+  defp entity_form(assigns) do
+    ~H"""
+    <div class="flex flex-col gap-3">
+      <%!-- Name field --%>
+      <fieldset class="flex flex-col gap-1">
+        <legend class="text-xs uppercase tracking-wide text-base-content/40">Name</legend>
+        <div class="flex items-center gap-2">
+          <input
+            type="text"
+            name="name"
+            phx-change="sync_field_value"
+            phx-value-field="name"
+            value={@field_values["name"]}
+            class="input input-sm input-bordered w-full flex-1"
+            disabled={!MapSet.member?(@editing_fields, "name") and @field_values["name"] != ""}
+          />
+          <button
+            type="button"
+            phx-click="toggle_field_edit"
+            phx-value-field="name"
+            class="btn btn-ghost btn-xs"
+          >
+            <.icon name="hero-pencil-square-micro" class="w-4 h-4" />
+          </button>
+        </div>
+      </fieldset>
+
+      <%!-- Display Name field --%>
+      <fieldset class="flex flex-col gap-1">
+        <legend class="text-xs uppercase tracking-wide text-base-content/40">Display Name</legend>
+        <div class="flex items-center gap-2">
+          <input
+            type="text"
+            name="display_name"
+            phx-change="sync_field_value"
+            phx-value-field="display_name"
+            value={@field_values["display_name"]}
+            class="input input-sm input-bordered w-full flex-1"
+            disabled={!MapSet.member?(@editing_fields, "display_name") and @field_values["display_name"] != ""}
+          />
+          <button
+            type="button"
+            phx-click="toggle_field_edit"
+            phx-value-field="display_name"
+            class="btn btn-ghost btn-xs"
+          >
+            <.icon name="hero-pencil-square-micro" class="w-4 h-4" />
+          </button>
+        </div>
+      </fieldset>
+
+      <%!-- Description field --%>
+      <fieldset class="flex flex-col gap-1">
+        <legend class="text-xs uppercase tracking-wide text-base-content/40">Description</legend>
+        <div class="flex items-start gap-2">
+          <textarea
+            name="description"
+            phx-change="sync_field_value"
+            phx-value-field="description"
+            rows="2"
+            class="textarea textarea-sm textarea-bordered w-full flex-1"
+            disabled={!MapSet.member?(@editing_fields, "description") and @field_values["description"] != ""}
+          ><%= @field_values["description"] %></textarea>
+          <button
+            type="button"
+            phx-click="toggle_field_edit"
+            phx-value-field="description"
+            class="btn btn-ghost btn-xs mt-1"
+          >
+            <.icon name="hero-pencil-square-micro" class="w-4 h-4" />
+          </button>
+        </div>
+      </fieldset>
+
+      <%!-- Position field (read-only) --%>
+      <fieldset class="flex flex-col gap-1">
+        <legend class="text-xs uppercase tracking-wide text-base-content/40">Position</legend>
+        <p class="text-sm text-base-content/70">
+          <%= Float.round(@selected_pin.pin.x * 100, 1) %>%, <%= Float.round(@selected_pin.pin.y * 100, 1) %>%
+        </p>
+      </fieldset>
+    </div>
+    """
+  end
+
   defp sidebar(assigns) do
     ~H"""
     <div class="absolute left-0 top-0 h-full z-20 flex items-stretch">
@@ -445,16 +532,29 @@ defmodule EstratosWeb.MapLive do
         "overflow-hidden transition-all duration-300 bg-base-200 border-r border-base-content/10 flex flex-col",
         if(@sidebar_open, do: "w-[255px]", else: "w-0")
       ]}>
-        <div class="w-[255px] flex-1 flex flex-col overflow-hidden">
-          <%!-- Section 6 entity detail view will go here --%>
+        <div class="w-[255px] h-full flex flex-col">
+          <%!-- Header with entity type --%>
           <%= if @selected_pin do %>
-            <div class="p-4 flex flex-col gap-1">
-              <p class="text-xs uppercase tracking-wide text-base-content/40">
-                <%= @selected_pin.pin.entity_type %>
-              </p>
-              <p class="font-semibold text-sm"><%= @selected_pin.entity.name %></p>
+            <div class="px-4 py-2 border-b border-base-content/10 text-xs uppercase tracking-wide text-base-content/40 shrink-0">
+              <%= @selected_pin.pin.entity_type %>
             </div>
           <% end %>
+
+          <%!-- Scrollable fields area --%>
+          <div class="flex-1 overflow-y-auto p-4">
+            <%= if @selected_pin do %>
+              <.entity_form
+                selected_pin={@selected_pin}
+                field_values={@field_values}
+                editing_fields={@editing_fields}
+              />
+            <% end %>
+          </div>
+
+          <%!-- Bottom actions (Section 7 — stub) --%>
+          <div class="border-t border-base-content/10 p-2 bg-base-200 flex gap-2 shrink-0">
+            <%!-- Move and Delete buttons go here --%>
+          </div>
         </div>
       </div>
 
@@ -1306,10 +1406,18 @@ defmodule EstratosWeb.MapLive do
     pin = Pins.get_pin!(String.to_integer(id))
     entity = Pins.get_entity_for_pin(pin)
 
+    field_values = %{
+      "name" => entity.name,
+      "display_name" => entity.display_name || "",
+      "description" => entity.description || ""
+    }
+
     {:noreply,
      socket
      |> assign(:selected_pin, %{pin: pin, entity: entity})
-     |> assign(:sidebar_open, true)}
+     |> assign(:sidebar_open, true)
+     |> assign(:field_values, field_values)
+     |> assign(:editing_fields, MapSet.new())}
   end
 
   @impl true
@@ -1326,6 +1434,48 @@ defmodule EstratosWeb.MapLive do
       {:noreply, assign(socket, :sidebar_open, !socket.assigns.sidebar_open)}
     else
       {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("sync_field_value", %{"field" => field, "value" => value}, socket) do
+    field_values = Map.put(socket.assigns.field_values, field, value)
+    {:noreply, assign(socket, :field_values, field_values)}
+  end
+
+  @impl true
+  def handle_event("toggle_field_edit", %{"field" => field}, socket) do
+    editing = socket.assigns.editing_fields
+
+    if MapSet.member?(editing, field) do
+      # Save field
+      value = Map.get(socket.assigns.field_values, field, "")
+      entity = socket.assigns.selected_pin.entity
+      pin = socket.assigns.selected_pin.pin
+
+      entity_attrs = %{
+        String.to_atom(field) => if(value == "", do: nil, else: String.trim(value))
+      }
+
+      {:ok, updated_entity} =
+        case pin.entity_type do
+          "continent" -> Entities.update_continent(entity, entity_attrs)
+          "ocean" -> Entities.update_ocean(entity, entity_attrs)
+        end
+
+      selected_pin = %{pin: pin, entity: updated_entity}
+
+      # Update field_values to reflect saved value
+      updated_field_values = Map.put(socket.assigns.field_values, field, Map.get(updated_entity, String.to_atom(field)) || "")
+
+      {:noreply,
+       socket
+       |> assign(:selected_pin, selected_pin)
+       |> assign(:field_values, updated_field_values)
+       |> assign(:editing_fields, MapSet.delete(editing, field))}
+    else
+      # Enable edit
+      {:noreply, assign(socket, :editing_fields, MapSet.put(editing, field))}
     end
   end
 end

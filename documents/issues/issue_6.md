@@ -155,21 +155,21 @@ Same fields as Continent.
 
 ## Section 6 — Entity Detail View in Sidebar [sonnet]
 
-- [ ] Create an `entity_form` component rendered inside the sidebar when `:selected_pin` is not nil
-- [ ] The form uses DaisyUI `fieldset` with `fieldset-legend` for each field group
-- [ ] Use compact sizing throughout: `input-sm` for inputs, `textarea-sm` for textareas, `text-xs` for legends, `gap-2` between field groups
-- [ ] Add `:editing_fields` assign to socket — a MapSet of field names currently being edited (e.g., `MapSet.new(["description"])`)
-- [ ] Field: **Name** — `fieldset-legend` "Name", `input input-sm input-bordered w-full`, disabled unless field is in `:editing_fields` or value is empty
-- [ ] Field: **Display Name** — same pattern, legend "Display Name"
-- [ ] Field: **Description** — legend "Description", `textarea textarea-sm textarea-bordered w-full`, 2 rows
-- [ ] Field: **Position** — legend "Position", read-only text showing `"#{Float.round(x * 100, 1)}%, #{Float.round(y * 100, 1)}%"`, no edit button
-- [ ] Each editable field row is a flex container with the input taking `flex-1` and a small pencil button (`hero-pencil-square-micro`, `btn-ghost btn-xs`) on the right
-- [ ] Add `handle_event("toggle_field_edit", %{"field" => field_name})` — if field is in editing set: save the field value (call `update_continent/2` or `update_ocean/2`), remove from editing set; if field is not in editing set: add to editing set
-- [ ] When saving a field, send the field name and new value from the form — use `phx-value-field` and read the input value
-- [ ] Add `handle_event("save_field", %{"field" => field, "value" => value})` — update the entity, reload the selected_pin entity data
-- [ ] Empty fields auto-edit: in the template, check if the field value is nil or `""` — if so, render it as enabled (not disabled) without needing to click edit
-- [ ] Wrap the fields area in a scrollable div: `overflow-y-auto` with `flex-1` so it fills available space above the fixed bottom actions
-- [ ] The overall sidebar layout is a flex column: header (optional, entity type label), scrollable fields area (`flex-1 overflow-y-auto`), fixed bottom actions
+- [x] Create an `entity_form` component rendered inside the sidebar when `:selected_pin` is not nil
+- [x] The form uses DaisyUI `fieldset` with `fieldset-legend` for each field group
+- [x] Use compact sizing throughout: `input-sm` for inputs, `textarea-sm` for textareas, `text-xs` for legends, `gap-3` between field groups
+- [x] Add `:editing_fields` assign to socket — a MapSet of field names currently being edited
+- [x] Add `:field_values` assign to track field values synced via `phx-change`
+- [x] Field: **Name** — `fieldset-legend` "Name", `input input-sm input-bordered w-full`, disabled unless field is in `:editing_fields` or value is empty
+- [x] Field: **Display Name** — same pattern, legend "Display Name"
+- [x] Field: **Description** — legend "Description", `textarea textarea-sm textarea-bordered w-full`, 2 rows
+- [x] Field: **Position** — legend "Position", read-only text showing `"#{Float.round(x * 100, 1)}%, #{Float.round(y * 100, 1)}%"`, no edit button
+- [x] Each editable field row is a flex container with the input taking `flex-1` and a small pencil button (`hero-pencil-square-micro`, `btn-ghost btn-xs`) on the right
+- [x] Add `handle_event("toggle_field_edit", %{"field" => field_name})` — if field in editing set: save the field value (read from `:field_values`), remove from editing set; if not: add to editing set
+- [x] Add `handle_event("sync_field_value", %{"field" => field, "value" => value})` — sync input value to `:field_values` on phx-change
+- [x] Empty fields auto-edit: disabled unless field is in `:editing_fields` or value is empty (e.g., `disabled={!MapSet.member?(...) and field_value != ""}`)
+- [x] Wrap the fields area in a scrollable div: `overflow-y-auto` with `flex-1` so it fills available space above the fixed bottom actions
+- [x] The overall sidebar layout is a flex column: header (entity type label), scrollable fields area (`flex-1 overflow-y-auto`), fixed bottom actions (stub for Section 7)
 
 ---
 

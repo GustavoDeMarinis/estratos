@@ -597,7 +597,10 @@ defmodule EstratosWeb.MapLive do
   def handle_event("sync_field_value", %{"_target" => [field]} = params, socket) do
     value = params[field] || ""
     field_values = Map.put(socket.assigns.field_values, field, value)
-    {:noreply, assign(socket, :field_values, field_values)}
+    # Add to editing_fields so an empty field that was just typed into doesn't
+    # immediately become disabled when field_values[field] transitions from "".
+    editing_fields = MapSet.put(socket.assigns.editing_fields, field)
+    {:noreply, socket |> assign(:field_values, field_values) |> assign(:editing_fields, editing_fields)}
   end
 
   @impl true
@@ -629,7 +632,8 @@ defmodule EstratosWeb.MapLive do
        socket
        |> assign(:selected_pin, selected_pin)
        |> assign(:field_values, updated_field_values)
-       |> assign(:editing_fields, MapSet.delete(editing, field))}
+       |> assign(:editing_fields, MapSet.delete(editing, field))
+       |> load_pins()}
     else
       # Enable edit
       {:noreply, assign(socket, :editing_fields, MapSet.put(editing, field))}

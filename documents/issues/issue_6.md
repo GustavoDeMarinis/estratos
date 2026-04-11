@@ -135,21 +135,21 @@ Same fields as Continent.
 
 ## Section 5 — Sidebar Panel [sonnet]
 
-- [ ] Add `:selected_pin` assign to socket (nil or `%{pin: pin, entity: entity}`), initialized to nil
-- [ ] Add `:sidebar_open` boolean assign, initialized to `false`
-- [ ] Create a `sidebar` component rendered inside the map area, on the left side, as an absolutely-positioned div
-- [ ] Sidebar width: `255px` when open, `0px` when closed (content hidden with `overflow-hidden`)
-- [ ] Add CSS transition: `transition-all duration-300` for smooth expand/collapse
-- [ ] Sidebar background: `bg-base-200` with a right border (`border-r border-base-content/10`)
-- [ ] Create the sidebar toggle button: a `<button>` element, 25px wide x 80px tall, positioned on the right edge of the sidebar (using `absolute right-0 translate-x-full`), vertically centered (`top-1/2 -translate-y-1/2`)
-- [ ] Toggle button styling: `bg-base-200 rounded-r-lg shadow-md border border-l-0 border-base-content/10`
-- [ ] Toggle button arrow: `hero-chevron-left-micro` when sidebar is open, `hero-chevron-right-micro` when closed
-- [ ] Toggle button disabled state: when `:selected_pin` is nil, button gets `opacity-30 cursor-not-allowed`, click does nothing
-- [ ] Toggle button hover preview: when a pin is selected and sidebar is collapsed, on hover transition the button width to reveal the pin name and type text next to the arrow (CSS `group-hover:w-auto` or similar transition)
-- [ ] Add `handle_event("toggle_sidebar")` — flips `:sidebar_open` if a pin is selected
-- [ ] Add `handle_event("select_pin", %{"id" => id})` — load the pin and its entity, set `:selected_pin`, set `:sidebar_open` to true
-- [ ] Add `handle_event("deselect_pin")` — set `:selected_pin` to nil, set `:sidebar_open` to false
-- [ ] On map background click (not on a pin): trigger `"deselect_pin"` to close sidebar — handle this in the JS hook by checking if click target is the map image or container (not a pin)
+- [x] Add `:selected_pin` assign to socket (nil or `%{pin: pin, entity: entity}`), initialized to nil
+- [x] Add `:sidebar_open` boolean assign, initialized to `false`
+- [x] Create a `sidebar` component rendered inside the map area, on the left side, as an absolutely-positioned div
+- [x] Sidebar width: `255px` when open, `0px` when closed (content hidden with `overflow-hidden`)
+- [x] Add CSS transition: `transition-all duration-300` for smooth expand/collapse
+- [x] Sidebar background: `bg-base-200` with a right border (`border-r border-base-content/10`)
+- [x] Create the sidebar toggle button: a `<button>` element, 25px wide x 80px tall, attached to the right edge of the sidebar as a flex sibling
+- [x] Toggle button styling: `bg-base-200 rounded-r-lg shadow-md border border-l-0 border-base-content/10`
+- [x] Toggle button arrow: `hero-chevron-left-micro` when sidebar is open, `hero-chevron-right-micro` when closed
+- [x] Toggle button disabled state: when `:selected_pin` is nil, button gets `disabled:opacity-30 disabled:cursor-not-allowed`, click does nothing
+- [x] Toggle button hover preview: when a pin is selected and sidebar is collapsed, on hover `max-w-0 group-hover:max-w-[150px]` reveals the pin name and type text next to the arrow
+- [x] Add `handle_event("toggle_sidebar")` — flips `:sidebar_open` if a pin is selected
+- [x] Add `handle_event("select_pin", %{"id" => id})` — load the pin and its entity, set `:selected_pin`, set `:sidebar_open` to true
+- [x] Add `handle_event("deselect_pin")` — set `:selected_pin` to nil, set `:sidebar_open` to false
+- [x] On map background click (not on a pin): JS hook `onPinClick` checks `e.target.closest("[data-pin]")` — pushes `"deselect_pin"` on background click outside pin mode
 
 ---
 

@@ -52,7 +52,7 @@ defmodule EstratosWeb.MapLive do
     ~H"""
     <div class="flex flex-col h-full">
       <.navbar world={@world} worlds={@worlds} uploads={@uploads} pending_image={@pending_image} pin_mode={@pin_mode} />
-      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} pin_mode={@pin_mode} pending_pin={@pending_pin} pins={@pins} />
+      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} pin_mode={@pin_mode} pending_pin={@pending_pin} pins={@pins} selected_pin={@selected_pin} sidebar_open={@sidebar_open} />
       <Layouts.flash_group flash={@flash} />
       <.world_modal :if={@world_modal} world={@editing_world || @world} mode={@world_modal} />
       <.name_map_modal :if={@naming_new_map} />
@@ -437,6 +437,52 @@ defmodule EstratosWeb.MapLive do
     """
   end
 
+  defp sidebar(assigns) do
+    ~H"""
+    <div class="absolute left-0 top-0 h-full z-20 flex items-stretch">
+      <%!-- Content panel — width transitions between 0 and 255px --%>
+      <div class={[
+        "overflow-hidden transition-all duration-300 bg-base-200 border-r border-base-content/10 flex flex-col",
+        if(@sidebar_open, do: "w-[255px]", else: "w-0")
+      ]}>
+        <div class="w-[255px] flex-1 flex flex-col overflow-hidden">
+          <%!-- Section 6 entity detail view will go here --%>
+          <%= if @selected_pin do %>
+            <div class="p-4 flex flex-col gap-1">
+              <p class="text-xs uppercase tracking-wide text-base-content/40">
+                <%= @selected_pin.pin.entity_type %>
+              </p>
+              <p class="font-semibold text-sm"><%= @selected_pin.entity.name %></p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <%!-- Toggle button — sticks out to the right of the panel --%>
+      <button
+        type="button"
+        phx-click="toggle_sidebar"
+        disabled={is_nil(@selected_pin)}
+        class="group self-center min-w-[25px] h-[80px] bg-base-200 rounded-r-lg shadow-md border border-l-0 border-base-content/10 flex items-center overflow-hidden transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        <span class="w-[25px] flex items-center justify-center shrink-0">
+          <.icon
+            name={if @sidebar_open, do: "hero-chevron-left-micro", else: "hero-chevron-right-micro"}
+            class="w-4 h-4"
+          />
+        </span>
+        <%!-- Hover preview — only shown when a pin is selected and sidebar is collapsed --%>
+        <%= if @selected_pin && !@sidebar_open do %>
+          <span class="max-w-0 group-hover:max-w-[150px] overflow-hidden transition-all duration-200 group-hover:pr-2 text-left whitespace-nowrap">
+            <span class="text-xs font-bold leading-tight block"><%= @selected_pin.entity.name %></span>
+            <span class="text-xs opacity-60 leading-tight capitalize block"><%= @selected_pin.pin.entity_type %></span>
+          </span>
+        <% end %>
+      </button>
+    </div>
+    """
+  end
+
   defp map_pins(assigns) do
     ~H"""
     <div
@@ -491,6 +537,7 @@ defmodule EstratosWeb.MapLive do
       <.map_actions :if={@map} map={@map} renaming={@renaming} />
       <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} pending_image={@pending_image} />
       <.map_pins pins={@pins} pending_pin={@pending_pin} />
+      <.sidebar selected_pin={@selected_pin} sidebar_open={@sidebar_open} />
       <.zoom_controls />
     </main>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".MapContainer">
@@ -633,20 +680,28 @@ defmodule EstratosWeb.MapLive do
           this.el.addEventListener("map:zoom-out", () => this.zoomFromCenter(1 / 1.5))
           this.el.addEventListener("map:reset-view", () => this.reset())
 
-          // Pin placement: capture normalized coordinates on click
+          // Map click handler: pin placement or background deselect
           this.onPinClick = (e) => {
-            if (!this.el.classList.contains("cursor-crosshair")) return
-            // Ignore clicks on interactive elements (buttons, pins, etc.)
-            if (e.target.closest("button") || e.target.closest("[data-pin]")) return
-            e.stopPropagation()
+            const onPin = !!e.target.closest("[data-pin]")
+            const onButton = !!e.target.closest("button")
 
-            const rect = this.el.getBoundingClientRect()
-            // Normalize relative to the container, accounting for pan/zoom transform
-            const rawX = e.clientX - rect.left
-            const rawY = e.clientY - rect.top
-            const x = Math.max(0, Math.min(1, (rawX - this.tx) / (rect.width * this.scale)))
-            const y = Math.max(0, Math.min(1, (rawY - this.ty) / (rect.height * this.scale)))
-            this.pushEvent("pin_clicked", { x, y })
+            if (this.el.classList.contains("cursor-crosshair")) {
+              // Pin placement mode — place pin on background click
+              if (onButton || onPin) return
+              e.stopPropagation()
+
+              const rect = this.el.getBoundingClientRect()
+              const rawX = e.clientX - rect.left
+              const rawY = e.clientY - rect.top
+              const x = Math.max(0, Math.min(1, (rawX - this.tx) / (rect.width * this.scale)))
+              const y = Math.max(0, Math.min(1, (rawY - this.ty) / (rect.height * this.scale)))
+              this.pushEvent("pin_clicked", { x, y })
+            } else {
+              // Normal mode — background click deselects current pin
+              if (!onPin && !onButton) {
+                this.pushEvent("deselect_pin", {})
+              }
+            }
           }
           this.el.addEventListener("click", this.onPinClick)
 
@@ -1246,15 +1301,31 @@ defmodule EstratosWeb.MapLive do
      |> assign(:pending_pin, nil)}
   end
 
-  # Stub — full implementation in Section 5
-
   @impl true
-  def handle_event("select_pin", _params, socket) do
-    {:noreply, socket}
+  def handle_event("select_pin", %{"id" => id}, socket) do
+    pin = Pins.get_pin!(String.to_integer(id))
+    entity = Pins.get_entity_for_pin(pin)
+
+    {:noreply,
+     socket
+     |> assign(:selected_pin, %{pin: pin, entity: entity})
+     |> assign(:sidebar_open, true)}
   end
 
   @impl true
   def handle_event("deselect_pin", _params, socket) do
-    {:noreply, socket}
+    {:noreply,
+     socket
+     |> assign(:selected_pin, nil)
+     |> assign(:sidebar_open, false)}
+  end
+
+  @impl true
+  def handle_event("toggle_sidebar", _params, socket) do
+    if socket.assigns.selected_pin do
+      {:noreply, assign(socket, :sidebar_open, !socket.assigns.sidebar_open)}
+    else
+      {:noreply, socket}
+    end
   end
 end

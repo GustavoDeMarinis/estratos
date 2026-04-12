@@ -6,6 +6,7 @@ defmodule EstratosWeb.MapLive.Navbar do
 
   attr :world, :map, required: true
   attr :worlds, :list, required: true
+  attr :map, :any, required: true
   attr :uploads, :map, required: true
   attr :pending_image, :any, required: true
   attr :pin_mode, :boolean, required: true
@@ -98,6 +99,7 @@ defmodule EstratosWeb.MapLive.Navbar do
       <button
         type="button"
         phx-click="toggle_pin_mode"
+        disabled={is_nil(@map) || @pending_image != nil || @uploads.map_image.entries != []}
         class={["btn btn-sm", if(@pin_mode, do: "btn-primary", else: "btn-ghost")]}
         title={if(@pin_mode, do: "Exit pin mode", else: "Place a pin")}
       >

@@ -192,26 +192,26 @@ Same fields as Continent.
 
 ## Section 8 — Smoke Test [sonnet]
 
-- [ ] `make up` → app boots, map loads
-- [ ] Click the pin button in navbar → button appears pressed, cursor is crosshair on map
-- [ ] Click on the map → pin icon appears at click location, creation modal opens
-- [ ] Select "Continent", fill name, save → pin is saved, visible on map with green color
-- [ ] Hover over pin → tooltip shows name (bold) and "Continent" below
-- [ ] Click pin → sidebar expands from left (255px) showing continent details
-- [ ] Edit the name field via pencil icon → field becomes editable → click pencil again → saves
-- [ ] Empty description field is already editable without clicking pencil
-- [ ] Click sidebar toggle button → sidebar collapses, arrow flips
-- [ ] Hover toggle button with pin selected → button expands to show pin name
-- [ ] Click toggle again → sidebar reopens
-- [ ] Click "Move" → sidebar closes, cursor is crosshair → click new location → pin teleports → confirm modal → confirm → pin stays at new position
-- [ ] Repeat move but cancel → pin returns to original position
-- [ ] Click "Delete" → confirm → continent and pin removed, sidebar closes
-- [ ] Create an ocean pin → blue color pin, same full flow works
-- [ ] Switch maps → pins are scoped to each map (different maps show different pins)
-- [ ] Switch worlds → entities and pins belong to that world's maps
-- [ ] Pan/zoom the map → pins stay at correct relative positions on the image
-- [ ] Click map background (not a pin) → sidebar closes, pin deselected
-- [ ] `make test` → all tests pass
+- [x] `make up` → app boots, map loads
+- [x] Click the pin button in navbar → button appears pressed, cursor is crosshair on map
+- [x] Click on the map → pin icon appears at click location, creation modal opens
+- [x] Select "Continent", fill name, save → pin is saved, visible on map with green color
+- [x] Hover over pin → tooltip shows name (bold) and "Continent" below
+- [x] Click pin → sidebar expands from left (255px) showing continent details
+- [x] Edit the name field via pencil icon → field becomes editable → click pencil again → saves
+- [x] Empty description field is already editable without clicking pencil
+- [x] Click sidebar toggle button → sidebar collapses, arrow flips
+- [x] Hover toggle button with pin selected → button expands to show pin name
+- [x] Click toggle again → sidebar reopens
+- [x] Click "Move" → sidebar closes, cursor is crosshair → click new location → pin teleports → confirm modal → confirm → pin stays at new position
+- [x] Repeat move but cancel → pin returns to original position
+- [x] Click "Delete" → confirm → continent and pin removed, sidebar closes
+- [x] Create an ocean pin → blue color pin, same full flow works
+- [x] Switch maps → pins are scoped to each map (different maps show different pins)
+- [x] Switch worlds → entities and pins belong to that world's maps
+- [x] Pan/zoom the map → pins stay at correct relative positions on the image
+- [x] Click map background (not a pin) → sidebar closes, pin deselected
+- [x] `make test` → all tests pass
 
 ---
 

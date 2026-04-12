@@ -104,6 +104,17 @@
 
 /* This file is for your main application CSS */
 
+/* Keeps a newly-inserted element invisible (and unhoverable) for 300ms.
+   Used on the sidebar toggle-button hover preview so it doesn't flash
+   during the sidebar's 300ms close transition. */
+@keyframes reveal-after-transition {
+  0%, 99.9% { visibility: hidden; }
+  100% { visibility: visible; }
+}
+.reveal-after-transition {
+  animation: reveal-after-transition 300ms forwards;
+}
+
 /* Prevent DaisyUI modal from shifting layout */
 html {
   scrollbar-gutter: auto;

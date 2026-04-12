@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgis/postgis:17-3.4
+    container_name: estratos_db_test
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: estratos_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: estratos_app_test
+    environment:
+      MIX_ENV: test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: estratos_test
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      SECRET_KEY_BASE: test-secret-key-base-for-testing-only
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - estratos_test_deps:/app/deps
+      - estratos_test_build:/app/_build
+
+volumes:
+  estratos_test_deps:
+  estratos_test_build:

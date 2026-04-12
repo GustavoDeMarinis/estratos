@@ -30,7 +30,7 @@ defmodule EstratosWeb.MapLive.MapArea do
       data-move-mode={if !is_nil(@moving_pin), do: "true", else: "false"}
       class={["flex-1 overflow-hidden bg-base-300 select-none relative", if(@pin_mode || !is_nil(@moving_pin), do: "cursor-crosshair", else: "")]}
     >
-      <.map_tabs maps={@maps} map={@map} renaming={@renaming} />
+      <.map_tabs maps={@maps} map={@map} renaming={@renaming} sidebar_open={@sidebar_open} />
       <.map_actions :if={@map} map={@map} renaming={@renaming} />
       <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} pending_image={@pending_image} />
       <.map_pins pins={@pins} pending_pin={@pending_pin} />
@@ -49,10 +49,11 @@ defmodule EstratosWeb.MapLive.MapArea do
   attr :maps, :list, required: true
   attr :map, :any, required: true
   attr :renaming, :boolean, required: true
+  attr :sidebar_open, :boolean, required: true
 
   defp map_tabs(assigns) do
     ~H"""
-    <div class="absolute top-0 left-0 flex gap-1 px-2 z-10">
+    <div class={["absolute top-0 flex gap-1 px-2 z-10 transition-all duration-300", if(@sidebar_open, do: "left-[255px]", else: "left-0")]}>
       <%= for m <- @maps do %>
         <button
           type="button"

@@ -59,6 +59,7 @@ defmodule EstratosWeb.MapLive do
       <Navbar.navbar
         world={@world}
         worlds={@worlds}
+        map={@map}
         uploads={@uploads}
         pending_image={@pending_image}
         pin_mode={@pin_mode}
@@ -186,7 +187,12 @@ defmodule EstratosWeb.MapLive do
      |> clear_pending()
      |> assign(:map, nil)
      |> assign(:image_broken, false)
-     |> assign(:renaming, false)}
+     |> assign(:renaming, false)
+     |> assign(:pin_mode, false)
+     |> assign(:pending_pin, nil)
+     |> assign(:selected_pin, nil)
+     |> assign(:sidebar_open, false)
+     |> load_pins()}
   end
 
   @impl true
@@ -284,7 +290,8 @@ defmodule EstratosWeb.MapLive do
      |> assign(:maps, maps)
      |> assign(:naming_new_map, nil)
      |> assign(:pending_image, nil)
-     |> assign(:image_broken, false)}
+     |> assign(:image_broken, false)
+     |> load_pins()}
   end
 
   @impl true

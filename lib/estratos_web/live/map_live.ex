@@ -3,6 +3,9 @@ defmodule EstratosWeb.MapLive do
 
   alias Estratos.Worlds
   alias Estratos.MapStorage
+  alias Estratos.Entities
+  alias Estratos.Pins
+  alias EstratosWeb.MapLive.{Navbar, MapArea, Modals}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -24,6 +27,16 @@ defmodule EstratosWeb.MapLive do
       |> assign(:editing_world, nil)
       |> assign(:naming_new_map, nil)
       |> assign(:pending_image, nil)
+      |> assign(:pin_mode, false)
+      |> assign(:pending_pin, nil)
+      |> assign(:pins, [])
+      |> assign(:selected_pin, nil)
+      |> assign(:sidebar_open, false)
+      |> assign(:field_values, %{})
+      |> assign(:editing_fields, MapSet.new())
+      |> assign(:moving_pin, nil)
+      |> assign(:confirm_move, nil)
+      |> load_pins()
       # max_entries: 2 allows selecting a replacement image while keeping the
       # current preview — validate cancels the older entry once the new one arrives.
       |> allow_upload(:map_image,
@@ -43,586 +56,35 @@ defmodule EstratosWeb.MapLive do
   def render(assigns) do
     ~H"""
     <div class="flex flex-col h-full">
-      <.navbar world={@world} worlds={@worlds} uploads={@uploads} pending_image={@pending_image} />
-      <.map_viewport uploads={@uploads} map={@map} maps={@maps} renaming={@renaming} image_broken={@image_broken} pending_image={@pending_image} />
-      <Layouts.flash_group flash={@flash} />
-      <.world_modal :if={@world_modal} world={@editing_world || @world} mode={@world_modal} />
-      <.name_map_modal :if={@naming_new_map} />
-    </div>
-    """
-  end
-
-  # ---------------------------------------------------------------------------
-  # Components
-  # ---------------------------------------------------------------------------
-
-  defp navbar(assigns) do
-    ~H"""
-    <header class="navbar bg-base-200 px-4 shrink-0 gap-3 min-h-0 h-12">
-      <div class="flex-1 flex items-center gap-2">
-        <div class="dropdown" id="world-dropdown" phx-hook=".WorldDropdown">
-          <button
-            tabindex="0"
-            type="button"
-            class="btn btn-sm btn-ghost gap-1 font-semibold tracking-wide"
-          >
-            <span class="max-w-[12rem] truncate"><%= @world.name %></span>
-            <.icon name="hero-chevron-down-micro" class="w-3.5 h-3.5 opacity-60 shrink-0" />
-          </button>
-          <ul
-            tabindex="0"
-            class="dropdown-content menu bg-base-100 border border-base-content/10 rounded-box shadow-lg z-20 w-56 mt-1 max-h-72 overflow-y-auto flex-nowrap p-1"
-          >
-            <%= for w <- @worlds do %>
-              <li>
-                <div class="flex flex-row items-center gap-1">
-                  <button
-                    type="button"
-                    phx-click="select_world"
-                    phx-value-id={w.id}
-                    class={["flex items-center gap-2 flex-1 text-left rounded px-2 py-1.5 hover:bg-base-content/10", if(@world.id == w.id, do: "font-semibold", else: "")]}
-                  >
-                    <.icon
-                      :if={@world.id == w.id}
-                      name="hero-check-micro"
-                      class="w-3.5 h-3.5 shrink-0 text-primary"
-                    />
-                    <span :if={@world.id != w.id} class="w-3.5 shrink-0" />
-                    <span class="truncate"><%= w.name %></span>
-                  </button>
-                  <button
-                    type="button"
-                    phx-click="start_rename_world_id"
-                    phx-value-id={w.id}
-                    class="p-1.5 shrink-0 text-base-content/40 hover:text-primary rounded transition-colors"
-                    title="Edit world"
-                  >
-                    <.icon name="hero-pencil-square-micro" class="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </li>
-            <% end %>
-            <li><div class="divider my-0.5"></div></li>
-            <li>
-              <button
-                type="button"
-                phx-click="new_world"
-                class="flex items-center gap-2 w-full text-left rounded"
-              >
-                <.icon name="hero-plus-micro" class="w-3.5 h-3.5 shrink-0" />
-                <span>New World</span>
-              </button>
-            </li>
-          </ul>
-          <script :type={Phoenix.LiveView.ColocatedHook} name=".WorldDropdown">
-            export default {
-              mounted() {
-                this.closeOnOutsideClick = (e) => {
-                  if (!this.el.contains(e.target)) {
-                    this.el.removeAttribute("open")
-                    const btn = this.el.querySelector("[tabindex='0']")
-                    if (btn) btn.blur()
-                  }
-                }
-                this.closeOnSelect = (e) => {
-                  if (e.target.closest("[phx-click]")) {
-                    this.el.removeAttribute("open")
-                    const btn = this.el.querySelector("[tabindex='0']")
-                    if (btn) btn.blur()
-                  }
-                }
-                document.addEventListener("click", this.closeOnOutsideClick)
-                this.el.addEventListener("click", this.closeOnSelect)
-              },
-              destroyed() {
-                document.removeEventListener("click", this.closeOnOutsideClick)
-              }
-            }
-          </script>
-        </div>
-      </div>
-      <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form" phx-hook=".UploadForm">
-        <button
-          type="button"
-          class="btn btn-sm btn-outline cursor-pointer"
-          phx-click="reupload"
-        >
-          Upload
-        </button>
-        <.live_file_input upload={@uploads.map_image} class="hidden" />
-        <button
-          type="submit"
-          class="btn btn-sm btn-primary"
-          disabled={@uploads.map_image.entries == [] and is_nil(@pending_image)}
-        >
-          Save
-        </button>
-      </form>
-      <script :type={Phoenix.LiveView.ColocatedHook} name=".UploadForm">
-        export default {
-          mounted() {
-            this.handleEvent("trigger-upload", ({ id }) => {
-              const inp = document.getElementById(id)
-              if (inp) {
-                inp.disabled = false
-                inp.value = ""
-                inp.click()
-              }
-            })
-          }
-        }
-      </script>
-    </header>
-    """
-  end
-
-  defp map_tabs(assigns) do
-    ~H"""
-    <div class="absolute top-0 left-0 flex gap-1 px-2 z-10">
-      <%= for m <- @maps do %>
-        <button
-          type="button"
-          phx-click="select_map"
-          phx-value-id={m.id}
-          class={[
-            "px-3 pb-1.5 pt-1 bg-base-200 rounded-b-lg text-sm shadow-md transition-all",
-            if(@map && @map.id == m.id,
-              do: "pb-2 text-base-content",
-              else: "text-base-content/60 hover:text-base-content"
-            )
-          ]}
-        >
-          <span class="truncate max-w-[10rem]"><%= m.name %></span>
-        </button>
-      <% end %>
-      <button
-        type="button"
-        phx-click="new_map"
-        class={[
-          "flex items-center gap-1 px-3 rounded-b-lg text-sm bg-base-200 shadow-md transition-all",
-          if(@map == nil,
-            do: "pb-2 pt-1 text-base-content",
-            else: "pb-1.5 pt-1 text-base-content/60 hover:text-base-content"
-          )
-        ]}
-      >
-        <.icon name="hero-plus-micro" class="w-3.5 h-3.5" />
-        <span>New Map</span>
-      </button>
-    </div>
-    """
-  end
-
-  defp map_actions(assigns) do
-    ~H"""
-    <div class="absolute bottom-4 left-4 z-10 flex gap-1">
-      <%= if @renaming do %>
-        <form id="rename-form" phx-submit="rename_map" class="flex items-center gap-1">
-          <input
-            type="text"
-            name="name"
-            value={@map.name}
-            class="input input-sm bg-base-200 w-48"
-            autofocus
-          />
-          <button type="submit" class="btn btn-sm btn-primary">Save</button>
-          <button type="button" phx-click="cancel_rename" class="btn btn-sm">Cancel</button>
-        </form>
-      <% else %>
-        <button
-          type="button"
-          phx-click="start_rename"
-          class="btn btn-sm bg-base-200 border-base-content/20 hover:bg-base-100 shadow-xl"
-          title="Rename map"
-        >
-          <.icon name="hero-pencil-square-micro" class="w-4 h-4" />
-          Rename
-        </button>
-        <button
-          type="button"
-          phx-click="delete_map"
-          phx-confirm={"Delete \"#{@map.name}\"? This cannot be undone."}
-          class="btn btn-sm bg-base-200 border-base-content/20 hover:bg-error hover:text-error-content shadow-xl"
-          title="Delete map"
-        >
-          <.icon name="hero-trash-micro" class="w-4 h-4" />
-          Delete
-        </button>
-      <% end %>
-    </div>
-    """
-  end
-
-  defp world_modal(%{mode: :new} = assigns) do
-    ~H"""
-    <div class="modal modal-open modal-middle">
-      <div class="modal-box max-w-sm">
-        <h3 class="font-bold text-lg">New World</h3>
-        <form phx-submit="create_world" class="flex flex-col gap-4 mt-4">
-          <label class="form-control w-full">
-            <div class="label"><span class="label-text">Name</span></div>
-            <input
-              type="text"
-              name="name"
-              value=""
-              placeholder="My World"
-              class="input input-bordered w-full"
-              autofocus
-              required
-            />
-          </label>
-          <label class="form-control w-full">
-            <div class="label"><span class="label-text">Description</span></div>
-            <textarea
-              name="description"
-              class="textarea textarea-bordered w-full"
-              rows="3"
-              placeholder="A brief description of your world"
-            ></textarea>
-          </label>
-          <div class="modal-action">
-            <button type="button" phx-click="cancel_rename_world" class="btn">Cancel</button>
-            <button type="submit" class="btn btn-primary">Create</button>
-          </div>
-        </form>
-      </div>
-      <div class="modal-backdrop" phx-click="cancel_rename_world"></div>
-    </div>
-    """
-  end
-
-  defp world_modal(%{mode: :edit} = assigns) do
-    ~H"""
-    <div class="modal modal-open modal-middle">
-      <div class="modal-box max-w-sm">
-        <h3 class="font-bold text-lg">Edit World</h3>
-        <form phx-submit="rename_world" class="flex flex-col gap-4 mt-4">
-          <label class="form-control w-full">
-            <div class="label"><span class="label-text">Name</span></div>
-            <input
-              type="text"
-              name="name"
-              value={@world.name}
-              class="input input-bordered w-full"
-              autofocus
-              required
-            />
-          </label>
-          <label class="form-control w-full">
-            <div class="label"><span class="label-text">Description</span></div>
-            <textarea
-              name="description"
-              class="textarea textarea-bordered w-full"
-              rows="3"
-              placeholder="A brief description of your world"
-            ><%= @world.description %></textarea>
-          </label>
-          <div class="modal-action justify-between">
-            <button
-              type="button"
-              phx-click="delete_world"
-              phx-value-id={@world.id}
-              phx-confirm={"Delete \"#{@world.name}\" and all its maps? This cannot be undone."}
-              class="btn btn-error btn-outline"
-            >
-              Delete World
-            </button>
-            <div class="flex gap-2">
-              <button type="button" phx-click="cancel_rename_world" class="btn">Cancel</button>
-              <button type="submit" class="btn btn-primary">Save</button>
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-backdrop" phx-click="cancel_rename_world"></div>
-    </div>
-    """
-  end
-
-  defp name_map_modal(assigns) do
-    ~H"""
-    <div class="modal modal-open modal-middle">
-      <div class="modal-box max-w-sm">
-        <h3 class="font-bold text-lg">Name your map</h3>
-        <form phx-submit="confirm_new_map" class="flex flex-col gap-4 mt-4">
-          <label class="form-control w-full">
-            <div class="label"><span class="label-text">Map name</span></div>
-            <input
-              type="text"
-              name="name"
-              value="Untitled Map"
-              class="input input-bordered w-full"
-              autofocus
-              required
-            />
-          </label>
-          <div class="modal-action">
-            <button type="button" phx-click="cancel_new_map" class="btn">Cancel</button>
-            <button type="submit" class="btn btn-primary">Create</button>
-          </div>
-        </form>
-      </div>
-      <div class="modal-backdrop" phx-click="cancel_new_map"></div>
-    </div>
-    """
-  end
-
-  defp map_viewport(assigns) do
-    ~H"""
-    <main
-      id="map-container"
-      phx-hook=".MapContainer"
-      class="flex-1 overflow-hidden bg-base-300 select-none relative"
-    >
-      <.map_tabs maps={@maps} map={@map} renaming={@renaming} />
-      <.map_actions :if={@map} map={@map} renaming={@renaming} />
-      <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} pending_image={@pending_image} />
-      <.zoom_controls />
-    </main>
-    <script :type={Phoenix.LiveView.ColocatedHook} name=".MapContainer">
-      export default {
-        mounted() {
-          this.scale = 1
-          this.tx = 0
-          this.ty = 0
-          this.dragging = false
-          this.dragStartX = 0
-          this.dragStartY = 0
-
-          const MIN_SCALE = 1
-          const MAX_SCALE = 10
-
-          this.img = () => this.el.querySelector("img")
-
-          this.applyTransform = () => {
-            const img = this.img()
-            if (!img) return
-            img.style.transformOrigin = "0 0"
-            img.style.transform = `translate(${this.tx}px, ${this.ty}px) scale(${this.scale})`
-          }
-
-          this.reset = () => {
-            this.scale = 1
-            this.tx = 0
-            this.ty = 0
-            this.applyTransform()
-            this.syncUI()
-          }
-
-          this.clamp = () => {
-            const W = this.el.offsetWidth
-            const H = this.el.offsetHeight
-            const img = this.img()
-            const s = this.scale
-
-            let ox = 0, oy = 0
-            if (img && img.naturalWidth && img.naturalHeight) {
-              if (img.naturalWidth / img.naturalHeight > W / H) {
-                oy = (H - W * img.naturalHeight / img.naturalWidth) / 2
-              } else {
-                ox = (W - H * img.naturalWidth / img.naturalHeight) / 2
-              }
-            }
-
-            const txMax = -ox * s
-            const txMin = W * (1 - s) + ox * s
-            this.tx = txMin > txMax
-              ? (txMin + txMax) / 2
-              : Math.min(txMax, Math.max(txMin, this.tx))
-
-            const tyMax = -oy * s
-            const tyMin = H * (1 - s) + oy * s
-            this.ty = tyMin > tyMax
-              ? (tyMin + tyMax) / 2
-              : Math.min(tyMax, Math.max(tyMin, this.ty))
-          }
-
-          this.applyZoom = (factor, originX, originY) => {
-            const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, this.scale * factor))
-            if (newScale <= MIN_SCALE) {
-              this.scale = MIN_SCALE
-              this.tx = 0
-              this.ty = 0
-            } else {
-              const ratio = newScale / this.scale
-              this.tx = originX - ratio * (originX - this.tx)
-              this.ty = originY - ratio * (originY - this.ty)
-              this.scale = newScale
-            }
-            this.clamp()
-            this.applyTransform()
-            this.syncUI()
-          }
-
-          this.zoomFromCenter = (factor) => {
-            if (!this.img()) return
-            const rect = this.el.getBoundingClientRect()
-            this.applyZoom(factor, rect.width / 2, rect.height / 2)
-          }
-
-          this.syncUI = () => {
-            const zoomInBtn = document.getElementById("zoom-in-btn")
-            const zoomOutBtn = document.getElementById("zoom-out-btn")
-            const resetBtn = document.getElementById("reset-view-btn")
-            if (zoomInBtn) zoomInBtn.disabled = this.scale >= MAX_SCALE
-            if (zoomOutBtn) zoomOutBtn.disabled = this.scale <= MIN_SCALE
-            if (resetBtn) resetBtn.disabled = this.scale <= MIN_SCALE
-            this.el.style.cursor = this.scale > MIN_SCALE ? "grab" : ""
-          }
-
-          this.onWheel = (e) => {
-            if (!this.img()) return
-            e.preventDefault()
-            const rect = this.el.getBoundingClientRect()
-            this.applyZoom(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top)
-          }
-
-          this.onMouseDown = (e) => {
-            if (e.button !== 0 || this.scale <= MIN_SCALE) return
-            if (e.target.closest("button")) return
-            this.dragging = true
-            this.dragStartX = e.clientX - this.tx
-            this.dragStartY = e.clientY - this.ty
-            this.el.style.cursor = "grabbing"
-            e.preventDefault()
-          }
-
-          this.onMouseMove = (e) => {
-            if (!this.dragging) return
-            this.tx = e.clientX - this.dragStartX
-            this.ty = e.clientY - this.dragStartY
-            this.clamp()
-            this.applyTransform()
-          }
-
-          this.onMouseUp = () => {
-            if (!this.dragging) return
-            this.dragging = false
-            this.el.style.cursor = this.scale > 1 ? "grab" : ""
-          }
-
-          this.el.addEventListener("wheel", this.onWheel, { passive: false })
-          this.el.addEventListener("mousedown", this.onMouseDown)
-          window.addEventListener("mousemove", this.onMouseMove)
-          window.addEventListener("mouseup", this.onMouseUp)
-          this.el.addEventListener("map:zoom-in", () => this.zoomFromCenter(1.5))
-          this.el.addEventListener("map:zoom-out", () => this.zoomFromCenter(1 / 1.5))
-          this.el.addEventListener("map:reset-view", () => this.reset())
-
-          this.syncUI()
-        },
-
-        updated() {
-          this.reset()
-        },
-
-        destroyed() {
-          this.el.removeEventListener("wheel", this.onWheel)
-          this.el.removeEventListener("mousedown", this.onMouseDown)
-          window.removeEventListener("mousemove", this.onMouseMove)
-          window.removeEventListener("mouseup", this.onMouseUp)
-        }
-      }
-    </script>
-    """
-  end
-
-  defp map_image(assigns) do
-    ~H"""
-    <%= if entry = List.last(@uploads.map_image.entries) do %>
-      <.live_img_preview
-        entry={entry}
-        class="w-full h-full object-contain"
-        phx-hook=".MapImage"
-        id={"map-preview-#{entry.ref}"}
-        draggable="false"
+      <Navbar.navbar
+        world={@world}
+        worlds={@worlds}
+        map={@map}
+        uploads={@uploads}
+        pending_image={@pending_image}
+        pin_mode={@pin_mode}
       />
-    <% else %>
-      <%= if @pending_image do %>
-        <img
-          src={@pending_image}
-          class="w-full h-full object-contain"
-          id="map-pending-image"
-          draggable="false"
-          phx-hook=".MapImage"
-        />
-      <% else %>
-        <%= if @map do %>
-          <%= if @image_broken do %>
-            <div class="flex flex-col items-center justify-center h-full gap-2">
-              <.icon name="hero-exclamation-triangle" class="w-8 h-8 text-warning" />
-              <p class="text-base-content text-sm font-medium">Map image not found</p>
-              <p class="text-base-content/40 text-sm"><%= @map.name %></p>
-            </div>
-          <% else %>
-            <img
-              src={@map.image_path}
-              class="w-full h-full object-contain"
-              id="map-image"
-              draggable="false"
-              phx-hook=".MapImage"
-            />
-          <% end %>
-        <% else %>
-          <div class="flex items-center justify-center h-full">
-            <p class="text-base-content/40 text-sm">Upload a map image to get started</p>
-          </div>
-        <% end %>
-      <% end %>
-    <% end %>
-    <script :type={Phoenix.LiveView.ColocatedHook} name=".MapImage">
-      export default {
-        mounted() {
-          this.el.addEventListener("load", () => {
-            this.pushEvent("image_dimensions", {
-              width: this.el.naturalWidth,
-              height: this.el.naturalHeight
-            })
-          })
-
-          this.el.addEventListener("error", () => {
-            this.pushEvent("image_error", {})
-          })
-
-          if (this.el.complete && this.el.naturalWidth > 0) {
-            this.pushEvent("image_dimensions", {
-              width: this.el.naturalWidth,
-              height: this.el.naturalHeight
-            })
-          }
-        }
-      }
-    </script>
-    """
-  end
-
-  defp zoom_controls(assigns) do
-    ~H"""
-    <div class="absolute bottom-4 right-4 z-10 flex flex-col shadow-xl">
-      <button
-        id="zoom-in-btn"
-        type="button"
-        class="w-9 h-9 flex items-center justify-center bg-base-200 hover:bg-base-100 text-base-content border border-base-content/20 rounded-t-lg disabled:opacity-30 disabled:cursor-not-allowed"
-        phx-click={JS.dispatch("map:zoom-in", to: "#map-container")}
-      >
-        <.icon name="hero-plus-micro" />
-      </button>
-      <button
-        id="zoom-out-btn"
-        type="button"
-        class="w-9 h-9 flex items-center justify-center bg-base-200 hover:bg-base-100 text-base-content border-x border-b border-base-content/20 disabled:opacity-30 disabled:cursor-not-allowed"
-        phx-click={JS.dispatch("map:zoom-out", to: "#map-container")}
-      >
-        <.icon name="hero-minus-micro" />
-      </button>
-      <button
-        id="reset-view-btn"
-        type="button"
-        class="w-9 h-9 flex items-center justify-center bg-base-200 hover:bg-base-100 text-base-content border-x border-b border-base-content/20 rounded-b-lg disabled:opacity-30 disabled:cursor-not-allowed"
-        phx-click={JS.dispatch("map:reset-view", to: "#map-container")}
-      >
-        <.icon name="hero-arrows-pointing-in-micro" />
-      </button>
+      <MapArea.map_viewport
+        uploads={@uploads}
+        map={@map}
+        maps={@maps}
+        renaming={@renaming}
+        image_broken={@image_broken}
+        pending_image={@pending_image}
+        pin_mode={@pin_mode}
+        pending_pin={@pending_pin}
+        pins={@pins}
+        selected_pin={@selected_pin}
+        sidebar_open={@sidebar_open}
+        field_values={@field_values}
+        editing_fields={@editing_fields}
+        moving_pin={@moving_pin}
+      />
+      <Layouts.flash_group flash={@flash} />
+      <Modals.world_modal :if={@world_modal} world={@editing_world || @world} mode={@world_modal} />
+      <Modals.name_map_modal :if={@naming_new_map} />
+      <Modals.pin_create_modal :if={@pending_pin} />
+      <Modals.confirm_move_modal :if={@confirm_move} confirm_move={@confirm_move} />
     </div>
     """
   end
@@ -630,6 +92,21 @@ defmodule EstratosWeb.MapLive do
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
+
+  defp load_pins(socket) do
+    case socket.assigns.map do
+      nil ->
+        assign(socket, :pins, [])
+
+      map ->
+        pin_data =
+          map
+          |> Pins.list_pins_for_map()
+          |> Enum.map(fn pin -> %{pin: pin, entity: Pins.get_entity_for_pin(pin)} end)
+
+        assign(socket, :pins, pin_data)
+    end
+  end
 
   defp clear_pending(socket) do
     socket =
@@ -699,7 +176,8 @@ defmodule EstratosWeb.MapLive do
      |> clear_pending()
      |> assign(:map, map)
      |> assign(:image_broken, image_broken?(map))
-     |> assign(:renaming, false)}
+     |> assign(:renaming, false)
+     |> load_pins()}
   end
 
   @impl true
@@ -709,7 +187,12 @@ defmodule EstratosWeb.MapLive do
      |> clear_pending()
      |> assign(:map, nil)
      |> assign(:image_broken, false)
-     |> assign(:renaming, false)}
+     |> assign(:renaming, false)
+     |> assign(:pin_mode, false)
+     |> assign(:pending_pin, nil)
+     |> assign(:selected_pin, nil)
+     |> assign(:sidebar_open, false)
+     |> load_pins()}
   end
 
   @impl true
@@ -807,7 +290,8 @@ defmodule EstratosWeb.MapLive do
      |> assign(:maps, maps)
      |> assign(:naming_new_map, nil)
      |> assign(:pending_image, nil)
-     |> assign(:image_broken, false)}
+     |> assign(:image_broken, false)
+     |> load_pins()}
   end
 
   @impl true
@@ -893,7 +377,8 @@ defmodule EstratosWeb.MapLive do
      |> assign(:map, nil)
      |> assign(:image_broken, false)
      |> assign(:renaming, false)
-     |> assign(:world_modal, nil)}
+     |> assign(:world_modal, nil)
+     |> load_pins()}
   end
 
   # World deletion
@@ -918,7 +403,8 @@ defmodule EstratosWeb.MapLive do
      |> assign(:image_broken, image_broken?(map))
      |> assign(:renaming, false)
      |> assign(:editing_world, nil)
-     |> assign(:world_modal, nil)}
+     |> assign(:world_modal, nil)
+     |> load_pins()}
   end
 
   # World switching
@@ -936,7 +422,8 @@ defmodule EstratosWeb.MapLive do
      |> assign(:maps, maps)
      |> assign(:map, map)
      |> assign(:image_broken, image_broken?(map))
-     |> assign(:renaming, false)}
+     |> assign(:renaming, false)
+     |> load_pins()}
   end
 
   # Map renaming
@@ -1001,5 +488,243 @@ defmodule EstratosWeb.MapLive do
      socket
      |> assign(:image_broken, true)
      |> put_flash(:error, "Map image failed to load")}
+  end
+
+  # Pin mode
+
+  @impl true
+  def handle_event("toggle_pin_mode", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:pin_mode, !socket.assigns.pin_mode)
+     |> assign(:pending_pin, nil)}
+  end
+
+  @impl true
+  def handle_event("pin_clicked", %{"x" => x, "y" => y}, socket) do
+    if socket.assigns.pin_mode do
+      {:noreply, assign(socket, :pending_pin, %{x: x, y: y})}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("pin_type_changed", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("save_pin", params, socket) do
+    %{"pin_type" => pin_type, "name" => name} = params
+    description = Map.get(params, "description", "")
+    display_name = Map.get(params, "display_name", "")
+    pending = socket.assigns.pending_pin
+    world = socket.assigns.world
+    map = socket.assigns.map
+
+    entity_attrs = %{
+      name: String.trim(name),
+      description: if(description == "", do: nil, else: String.trim(description)),
+      display_name: if(display_name == "", do: nil, else: String.trim(display_name))
+    }
+
+    result =
+      case pin_type do
+        "continent" -> Entities.create_continent(world, entity_attrs)
+        "ocean" -> Entities.create_ocean(world, entity_attrs)
+      end
+
+    case result do
+      {:ok, entity} ->
+        {:ok, _pin} =
+          Pins.create_pin(%{
+            entity_type: pin_type,
+            entity_id: entity.id,
+            map_id: map.id,
+            x: pending.x,
+            y: pending.y
+          })
+
+        {:noreply,
+         socket
+         |> assign(:pending_pin, nil)
+         |> assign(:pin_mode, false)
+         |> load_pins()}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to save pin — name is required")}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_pin", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:pending_pin, nil)}
+  end
+
+  @impl true
+  def handle_event("select_pin", %{"id" => id}, socket) do
+    pin = Pins.get_pin!(String.to_integer(id))
+    entity = Pins.get_entity_for_pin(pin)
+
+    field_values = %{
+      "name" => entity.name,
+      "display_name" => entity.display_name || "",
+      "description" => entity.description || ""
+    }
+
+    {:noreply,
+     socket
+     |> assign(:selected_pin, %{pin: pin, entity: entity})
+     |> assign(:sidebar_open, true)
+     |> assign(:field_values, field_values)
+     |> assign(:editing_fields, MapSet.new())}
+  end
+
+  @impl true
+  def handle_event("deselect_pin", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:selected_pin, nil)
+     |> assign(:sidebar_open, false)}
+  end
+
+  @impl true
+  def handle_event("toggle_sidebar", _params, socket) do
+    if socket.assigns.selected_pin do
+      {:noreply, assign(socket, :sidebar_open, !socket.assigns.sidebar_open)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("sync_field_value", %{"_target" => [field]} = params, socket) do
+    value = params[field] || ""
+    field_values = Map.put(socket.assigns.field_values, field, value)
+    # Add to editing_fields so an empty field that was just typed into doesn't
+    # immediately become disabled when field_values[field] transitions from "".
+    editing_fields = MapSet.put(socket.assigns.editing_fields, field)
+    {:noreply, socket |> assign(:field_values, field_values) |> assign(:editing_fields, editing_fields)}
+  end
+
+  @impl true
+  def handle_event("toggle_field_edit", %{"field" => field}, socket) do
+    editing = socket.assigns.editing_fields
+
+    if MapSet.member?(editing, field) do
+      # Save field
+      value = Map.get(socket.assigns.field_values, field, "")
+      entity = socket.assigns.selected_pin.entity
+      pin = socket.assigns.selected_pin.pin
+
+      entity_attrs = %{
+        String.to_atom(field) => if(value == "", do: nil, else: String.trim(value))
+      }
+
+      {:ok, updated_entity} =
+        case pin.entity_type do
+          "continent" -> Entities.update_continent(entity, entity_attrs)
+          "ocean" -> Entities.update_ocean(entity, entity_attrs)
+        end
+
+      selected_pin = %{pin: pin, entity: updated_entity}
+
+      # Update field_values to reflect saved value
+      updated_field_values = Map.put(socket.assigns.field_values, field, Map.get(updated_entity, String.to_atom(field)) || "")
+
+      {:noreply,
+       socket
+       |> assign(:selected_pin, selected_pin)
+       |> assign(:field_values, updated_field_values)
+       |> assign(:editing_fields, MapSet.delete(editing, field))
+       |> load_pins()}
+    else
+      # Enable edit
+      {:noreply, assign(socket, :editing_fields, MapSet.put(editing, field))}
+    end
+  end
+
+  @impl true
+  def handle_event("start_move_pin", _params, socket) do
+    pin = socket.assigns.selected_pin.pin
+
+    {:noreply,
+     socket
+     |> assign(:moving_pin, %{pin_id: pin.id, original_x: pin.x, original_y: pin.y})
+     |> assign(:sidebar_open, false)}
+  end
+
+  @impl true
+  def handle_event("move_pin_to", %{"x" => x, "y" => y}, socket) do
+    if socket.assigns.moving_pin do
+      %{pin: pin, entity: entity} = socket.assigns.selected_pin
+      updated_pin = %{pin | x: x, y: y}
+
+      updated_pins =
+        Enum.map(socket.assigns.pins, fn
+          %{pin: p} = entry when p.id == pin.id -> %{entry | pin: updated_pin}
+          entry -> entry
+        end)
+
+      {:noreply,
+       socket
+       |> assign(:selected_pin, %{pin: updated_pin, entity: entity})
+       |> assign(:pins, updated_pins)
+       |> assign(:confirm_move, %{x: x, y: y})}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("confirm_move", _params, socket) do
+    %{pin_id: pin_id} = socket.assigns.moving_pin
+    %{x: x, y: y} = socket.assigns.confirm_move
+    pin = Pins.get_pin!(pin_id)
+    {:ok, updated_pin} = Pins.update_pin(pin, %{x: x, y: y})
+    entity = Pins.get_entity_for_pin(updated_pin)
+
+    {:noreply,
+     socket
+     |> assign(:moving_pin, nil)
+     |> assign(:confirm_move, nil)
+     |> assign(:selected_pin, %{pin: updated_pin, entity: entity})
+     |> assign(:sidebar_open, true)
+     |> load_pins()}
+  end
+
+  @impl true
+  def handle_event("cancel_move", _params, socket) do
+    pin = Pins.get_pin!(socket.assigns.moving_pin.pin_id)
+    entity = Pins.get_entity_for_pin(pin)
+
+    {:noreply,
+     socket
+     |> assign(:moving_pin, nil)
+     |> assign(:confirm_move, nil)
+     |> assign(:selected_pin, %{pin: pin, entity: entity})
+     |> assign(:sidebar_open, true)
+     |> load_pins()}
+  end
+
+  @impl true
+  def handle_event("delete_entity", _params, socket) do
+    %{pin: _pin, entity: entity} = socket.assigns.selected_pin
+
+    case socket.assigns.selected_pin.pin.entity_type do
+      "continent" -> Entities.delete_continent(entity)
+      "ocean" -> Entities.delete_ocean(entity)
+    end
+
+    {:noreply,
+     socket
+     |> assign(:selected_pin, nil)
+     |> assign(:sidebar_open, false)
+     |> assign(:moving_pin, nil)
+     |> assign(:confirm_move, nil)
+     |> load_pins()}
   end
 end

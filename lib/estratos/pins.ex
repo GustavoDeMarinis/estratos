@@ -38,4 +38,12 @@ defmodule Estratos.Pins do
   def get_entity_for_pin(%Pin{entity_type: "ocean", entity_id: id}) do
     Estratos.Entities.get_ocean!(id)
   end
+
+  def get_entity_for_pin(%Pin{entity_type: "country", entity_id: id}) do
+    Estratos.Entities.get_country!(id)
+  end
+
+  def get_entity_for_pin(%Pin{entity_type: "city", entity_id: id}) do
+    Estratos.Entities.get_city!(id)
+  end
 end

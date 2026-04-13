@@ -32,6 +32,16 @@ defmodule Estratos.PinsTest do
     ocean
   end
 
+  defp create_country(world) do
+    {:ok, country} = Entities.create_country(world, %{name: "Valdoria"})
+    country
+  end
+
+  defp create_city(world) do
+    {:ok, city} = Entities.create_city(world, %{name: "Valheim"})
+    city
+  end
+
   defp valid_pin_attrs(map, entity_type, entity_id, overrides \\ %{}) do
     Map.merge(
       %{entity_type: entity_type, entity_id: entity_id, map_id: map.id, x: 0.5, y: 0.5},
@@ -239,6 +249,28 @@ defmodule Estratos.PinsTest do
       entity = Pins.get_entity_for_pin(pin)
       assert entity.id == ocean.id
       assert entity.name == "Pacific"
+    end
+
+    test "returns the correct country for a country pin" do
+      world = create_world()
+      map = create_map(world)
+      country = create_country(world)
+      {:ok, pin} = Pins.create_pin(valid_pin_attrs(map, "country", country.id))
+
+      entity = Pins.get_entity_for_pin(pin)
+      assert entity.id == country.id
+      assert entity.name == "Valdoria"
+    end
+
+    test "returns the correct city for a city pin" do
+      world = create_world()
+      map = create_map(world)
+      city = create_city(world)
+      {:ok, pin} = Pins.create_pin(valid_pin_attrs(map, "city", city.id))
+
+      entity = Pins.get_entity_for_pin(pin)
+      assert entity.id == city.id
+      assert entity.name == "Valheim"
     end
   end
 end

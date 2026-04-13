@@ -62,35 +62,35 @@ Add the first political entity types (Country and City) with structural parent r
 
 ### `Estratos.Entities` context additions
 
-- [ ] Add `create_country(world, attrs)` — builds a country with `world_id` set, optionally sets `continent_id` from attrs, inserts
-- [ ] Add `get_country!(id)` — `Repo.get!(Country, id)`
-- [ ] Add `update_country(country, attrs)` — applies changeset and updates
-- [ ] Add `delete_country(country)` — calls `Pins.delete_pins_for_entity("country", country.id)`, then `Repo.delete(country)`
-- [ ] Add `list_countries_for_world(world)` — returns all countries where `world_id == world.id`, ordered by name
-- [ ] Add `create_city(world, attrs)`, `get_city!(id)`, `update_city(city, attrs)`, `delete_city(city)` — same pattern as Country, using `"city"` as entity_type for pin cleanup
-- [ ] Add `list_cities_for_world(world)` — returns all cities where `world_id == world.id`, ordered by name
-- [ ] Add `list_continents_for_world(world)` — returns all continents where `world_id == world.id`, ordered by name (needed for Country parent dropdown)
+- [x] Add `create_country(world, attrs)` — builds a country with `world_id` set, optionally sets `continent_id` from attrs, inserts
+- [x] Add `get_country!(id)` — `Repo.get!(Country, id)`
+- [x] Add `update_country(country, attrs)` — applies changeset and updates
+- [x] Add `delete_country(country)` — calls `Pins.delete_pins_for_entity("country", country.id)`, then `Repo.delete(country)`
+- [x] Add `list_countries_for_world(world)` — returns all countries where `world_id == world.id`, ordered by name
+- [x] Add `create_city(world, attrs)`, `get_city!(id)`, `update_city(city, attrs)`, `delete_city(city)` — same pattern as Country, using `"city"` as entity_type for pin cleanup
+- [x] Add `list_cities_for_world(world)` — returns all cities where `world_id == world.id`, ordered by name
+- [x] Add `list_continents_for_world(world)` — returns all continents where `world_id == world.id`, ordered by name (needed for Country parent dropdown)
 
 ### `Estratos.Pins` context updates
 
-- [ ] Update `get_entity_for_pin/1` — add clauses for `"country"` and `"city"` that call `Entities.get_country!/1` and `Entities.get_city!/1`
+- [x] Update `get_entity_for_pin/1` — add clauses for `"country"` and `"city"` that call `Entities.get_country!/1` and `Entities.get_city!/1`
 
 ### Tests
 
-- [ ] Test `create_country/2` creates a country with correct world_id
-- [ ] Test `create_country/2` with continent_id sets the parent association
-- [ ] Test `create_country/2` without continent_id succeeds (parent is optional)
-- [ ] Test `create_country/2` returns error changeset when name is missing
-- [ ] Test `update_country/2` updates name, description, and continent_id
-- [ ] Test `delete_country/1` deletes the country and its pins
-- [ ] Test `delete_country/1` does NOT delete cities that reference it (they become parentless)
-- [ ] Test `list_countries_for_world/1` returns only countries for the given world
-- [ ] Test same CRUD operations for City (with country_id as optional parent)
-- [ ] Test `list_cities_for_world/1` returns only cities for the given world
-- [ ] Test `list_continents_for_world/1` returns only continents for the given world
-- [ ] Test `get_entity_for_pin/1` returns correct Country or City
-- [ ] Test deleting a Continent nilifies `continent_id` on its Countries (via `on_delete: :nilify_all`)
-- [ ] Test deleting a Country nilifies `country_id` on its Cities (via `on_delete: :nilify_all`)
+- [x] Test `create_country/2` creates a country with correct world_id
+- [x] Test `create_country/2` with continent_id sets the parent association
+- [x] Test `create_country/2` without continent_id succeeds (parent is optional)
+- [x] Test `create_country/2` returns error changeset when name is missing
+- [x] Test `update_country/2` updates name, description, and continent_id
+- [x] Test `delete_country/1` deletes the country and its pins
+- [x] Test `delete_country/1` does NOT delete cities that reference it (they become parentless)
+- [x] Test `list_countries_for_world/1` returns only countries for the given world
+- [x] Test same CRUD operations for City (with country_id as optional parent)
+- [x] Test `list_cities_for_world/1` returns only cities for the given world
+- [x] Test `list_continents_for_world/1` returns only continents for the given world
+- [x] Test `get_entity_for_pin/1` returns correct Country or City
+- [x] Test deleting a Continent nilifies `continent_id` on its Countries (via `on_delete: :nilify_all`)
+- [x] Test deleting a Country nilifies `country_id` on its Cities (via `on_delete: :nilify_all`)
 
 ---
 

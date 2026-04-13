@@ -20,6 +20,8 @@ defmodule EstratosWeb.MapLive.MapArea do
   attr :field_values, :map, required: true
   attr :editing_fields, :any, required: true
   attr :moving_pin, :any, required: true
+  attr :continents_list, :list, required: true
+  attr :countries_list, :list, required: true
 
   def map_viewport(assigns) do
     ~H"""
@@ -40,6 +42,8 @@ defmodule EstratosWeb.MapLive.MapArea do
         field_values={@field_values}
         editing_fields={@editing_fields}
         moving_pin={@moving_pin}
+        continents_list={@continents_list}
+        countries_list={@countries_list}
       />
       <.zoom_controls />
     </main>

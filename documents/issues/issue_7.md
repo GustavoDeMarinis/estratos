@@ -150,29 +150,29 @@ When viewing a Country or City in the sidebar, display the parent entity as a re
 
 ### Data loading
 
-- [ ] When selecting a pin for a Country: load its continent (if `continent_id` is set) and include in `selected_pin` as `%{pin: pin, entity: entity, parent: continent_or_nil}`
-- [ ] When selecting a pin for a City: load its country (if `country_id` is set) and include in `selected_pin` as `%{pin: pin, entity: entity, parent: country_or_nil}`
-- [ ] For Continent and Ocean: `parent` is always `nil`
+- [x] When selecting a pin for a Country: load its continent (if `continent_id` is set) and include in `selected_pin` as `%{pin: pin, entity: entity, parent: continent_or_nil}`
+- [x] When selecting a pin for a City: load its country (if `country_id` is set) and include in `selected_pin` as `%{pin: pin, entity: entity, parent: country_or_nil}`
+- [x] For Continent and Ocean: `parent` is always `nil`
 
 ### Sidebar display (`sidebar.ex`)
 
-- [ ] Add a "Parent" fieldset in `entity_form`, shown only for entity types that support a parent (`"country"`, `"city"`)
-- [ ] The parent field shows the parent entity's `display_name || name` as clickable text
-- [ ] Clicking the parent name pushes a `"navigate_to_parent"` event that selects the parent entity's pin on the current map (if it has one)
-- [ ] If no parent is set, show "None"
-- [ ] Add a pencil edit button that swaps the text for a `<select>` dropdown (same editing pattern as other fields)
-- [ ] The dropdown lists available parents for the entity type: continents for Country, countries for City
-- [ ] Clicking pencil again saves the new parent via `"update_parent"` event
+- [x] Add a "Parent" fieldset in `entity_form`, shown only for entity types that support a parent (`"country"`, `"city"`)
+- [x] The parent field shows the parent entity's `display_name || name` as clickable text
+- [x] Clicking the parent name pushes a `"navigate_to_parent"` event that selects the parent entity's pin on the current map (if it has one)
+- [x] If no parent is set, show "None"
+- [x] Add a pencil edit button that swaps the text for a `<select>` dropdown (same editing pattern as other fields)
+- [x] The dropdown lists available parents for the entity type: continents for Country, countries for City
+- [x] Clicking pencil again (now a check icon when editing) saves the new parent via `toggle_field_edit` with field="parent"
 
 ### `map_live.ex` event handlers
 
-- [ ] Add `handle_event("update_parent", %{"parent_id" => id}, ...)` — updates the entity's parent FK, refreshes `selected_pin` and entity lists
-- [ ] Add `handle_event("navigate_to_parent", ...)` — finds the parent entity's pin on the current map, if exists, and selects it (same as `select_pin`); if no pin on current map, flash a brief info message
+- [x] Parent save handled via `toggle_field_edit` "parent" special case — updates entity FK, reloads parent, refreshes entity lists
+- [x] Add `handle_event("navigate_to_parent", ...)` — finds the parent entity's pin on the current map, if exists, and selects it (same as `select_pin`); if no pin on current map, flash a brief info message
 
 ### Sidebar attrs update
 
-- [ ] Pass `continents_list` and `countries_list` to sidebar for the parent edit dropdown
-- [ ] Pass through from `map_viewport` (already receives assigns from `map_live.ex`)
+- [x] Pass `continents_list` and `countries_list` to sidebar for the parent edit dropdown
+- [x] Pass through from `map_viewport` (already receives assigns from `map_live.ex`)
 
 ---
 

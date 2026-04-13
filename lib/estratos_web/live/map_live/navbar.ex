@@ -1,8 +1,10 @@
 defmodule EstratosWeb.MapLive.Navbar do
   @moduledoc """
-  Top navbar for the map view: world dropdown, pin-mode toggle, upload form.
+  Top navbar for the map view: world dropdown, pin-mode toggle, layers dropdown, upload form.
   """
   use EstratosWeb, :html
+
+  alias Estratos.Layers
 
   attr :world, :map, required: true
   attr :worlds, :list, required: true
@@ -10,6 +12,7 @@ defmodule EstratosWeb.MapLive.Navbar do
   attr :uploads, :map, required: true
   attr :pending_image, :any, required: true
   attr :pin_mode, :boolean, required: true
+  attr :active_layers, :any, required: true
 
   def navbar(assigns) do
     ~H"""
@@ -105,6 +108,62 @@ defmodule EstratosWeb.MapLive.Navbar do
       >
         <.icon name="hero-map-pin-solid" class="w-4 h-4" />
       </button>
+      <div class="dropdown dropdown-end" id="layers-dropdown" phx-hook=".LayersDropdown">
+        <button
+          tabindex="0"
+          type="button"
+          class={["btn btn-sm btn-ghost gap-1", if(MapSet.size(@active_layers) < length(Layers.list_layers()), do: "text-primary", else: "")]}
+          title="Toggle layers"
+        >
+          <.icon name="hero-adjustments-horizontal-micro" class="w-4 h-4" />
+        </button>
+        <ul
+          tabindex="0"
+          class="dropdown-content menu bg-base-100 border border-base-content/10 rounded-box shadow-lg z-20 w-48 mt-1 p-1"
+        >
+          <%= for layer <- Layers.list_layers() do %>
+            <li>
+              <button
+                type="button"
+                phx-click="toggle_layer"
+                phx-value-slug={layer.slug}
+                class={["flex items-center gap-2 w-full text-left rounded px-2 py-1.5", if(MapSet.member?(@active_layers, layer.slug), do: "", else: "opacity-40")]}
+              >
+                <.icon
+                  :if={MapSet.member?(@active_layers, layer.slug)}
+                  name="hero-check-micro"
+                  class="w-3.5 h-3.5 shrink-0 text-primary"
+                />
+                <span :if={!MapSet.member?(@active_layers, layer.slug)} class="w-3.5 shrink-0" />
+                <.icon name={layer.icon} class="w-3.5 h-3.5 shrink-0" />
+                <span class="text-sm"><%= layer.name %></span>
+              </button>
+            </li>
+          <% end %>
+        </ul>
+        <script :type={Phoenix.LiveView.ColocatedHook} name=".LayersDropdown">
+          export default {
+            mounted() {
+              this.closeOnOutsideClick = (e) => {
+                if (!this.el.contains(e.target)) {
+                  this.el.removeAttribute("open")
+                  const btn = this.el.querySelector("[tabindex='0']")
+                  if (btn) btn.blur()
+                }
+              }
+              this.closeOnSelect = (e) => {
+                if (e.target.closest("[phx-click='toggle_layer']")) {
+                  // Don't close on layer toggle — user may want to toggle multiple
+                }
+              }
+              document.addEventListener("click", this.closeOnOutsideClick)
+            },
+            destroyed() {
+              document.removeEventListener("click", this.closeOnOutsideClick)
+            }
+          }
+        </script>
+      </div>
       <form phx-change="validate" phx-submit="save" class="flex gap-2" id="upload-form" phx-hook=".UploadForm">
         <button
           type="button"

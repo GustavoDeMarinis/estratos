@@ -182,63 +182,63 @@ Layers are predefined groupings of entity types. For MVP, layer definitions live
 
 ### Layer definitions module (`Estratos.Layers`)
 
-- [ ] Create `lib/estratos/layers.ex` module with a `@layers` module attribute:
+- [x] Create `lib/estratos/layers.ex` module with a `@layers` module attribute:
   ```elixir
   @layers [
     %{slug: "geographic", name: "Geographic", icon: "hero-globe-americas-micro", entity_types: ["continent", "ocean"]},
     %{slug: "political", name: "Political", icon: "hero-building-library-micro", entity_types: ["country", "city"]}
   ]
   ```
-- [ ] Add `list_layers/0` — returns all layer definitions
-- [ ] Add `layer_for_entity_type/1` — given an entity_type string, returns the layer slug it belongs to
-- [ ] Add `entity_types_for_layers/1` — given a list of active layer slugs, returns the flat list of entity_types that should be visible
+- [x] Add `list_layers/0` — returns all layer definitions
+- [x] Add `layer_for_entity_type/1` — given an entity_type string, returns the layer slug it belongs to
+- [x] Add `entity_types_for_layers/1` — given a list of active layer slugs, returns the flat list of entity_types that should be visible
 
 ### LiveView assigns
 
-- [ ] Add `:active_layers` assign to socket — initialized as a `MapSet` of all layer slugs (all layers active by default)
-- [ ] Reset `:active_layers` to all-active on world switch (different worlds might have different entity distributions)
+- [x] Add `:active_layers` assign to socket — initialized as a `MapSet` of all layer slugs (all layers active by default)
+- [x] Reset `:active_layers` to all-active on world switch (different worlds might have different entity distributions)
 
 ### Layer toggle UI (navbar)
 
-- [ ] Add a layers dropdown button in the navbar (between the pin toggle and upload form) — icon: `hero-funnel-micro` or `hero-adjustments-horizontal-micro`
-- [ ] The dropdown lists each layer with a checkbox/toggle, layer name, and icon
-- [ ] Each toggle fires `"toggle_layer"` with `phx-value-slug={layer.slug}`
-- [ ] Active layers show a checkmark or filled toggle; inactive layers appear dimmed
-- [ ] Use the same colocated hook dropdown pattern as `.WorldDropdown` for close-on-outside-click
+- [x] Add a layers dropdown button in the navbar (between the pin toggle and upload form) — icon: `hero-adjustments-horizontal-micro`
+- [x] The dropdown lists each layer with a checkbox/toggle, layer name, and icon
+- [x] Each toggle fires `"toggle_layer"` with `phx-value-slug={layer.slug}`
+- [x] Active layers show a checkmark; inactive layers appear dimmed (opacity-40)
+- [x] Colocated `.LayersDropdown` hook for close-on-outside-click; stays open on toggle so user can toggle multiple layers
 
 ### Pin filtering
 
-- [ ] Update `map_pins` component in `map_area.ex` to accept `active_layers` assign
-- [ ] Filter rendered pins: only show pins whose `entity_type` belongs to an active layer (use `Layers.layer_for_entity_type/1` to check)
-- [ ] When a layer is toggled off, its pins disappear from the map immediately (LiveView re-render)
-- [ ] If the currently selected pin's layer is toggled off: deselect the pin and close the sidebar
-- [ ] Pin mode respects layers: the entity type dropdown in the creation modal only shows types from active layers
+- [x] Update `map_pins` component in `map_area.ex` to accept `active_layers` assign
+- [x] Filter rendered pins: only show pins whose `entity_type` belongs to an active layer
+- [x] When a layer is toggled off, its pins disappear from the map immediately (LiveView re-render)
+- [x] If the currently selected pin's layer is toggled off: deselect the pin and close the sidebar
+- [x] Pin mode respects layers: the entity type dropdown in the creation modal only shows types from active layers
 
 ### `map_live.ex` event handler
 
-- [ ] Add `handle_event("toggle_layer", %{"slug" => slug}, ...)` — flip the slug in/out of `:active_layers` MapSet; if selected pin's type is now hidden, deselect it
+- [x] Add `handle_event("toggle_layer", %{"slug" => slug}, ...)` — flip the slug in/out of `:active_layers` MapSet; if selected pin's type is now hidden, deselect it
 
 ---
 
 ## Section 7 — Smoke Test
 
-- [ ] `make up` -> app boots, map loads, existing continent/ocean pins still work
-- [ ] Pin button -> click map -> modal shows 4 entity types: Continent, Ocean, Country, City
-- [ ] Create a Country pin -> amber-colored pin appears on map
-- [ ] Create a City pin -> rose-colored pin appears on map
-- [ ] Create a Country with a Continent parent selected -> sidebar shows parent link
-- [ ] Click parent link in sidebar -> navigates to continent's pin (selects it, sidebar shows continent)
-- [ ] Create a City with a Country parent selected -> sidebar shows country parent link
-- [ ] Edit parent from sidebar (pencil -> dropdown -> save) -> parent updates
-- [ ] Delete a Continent that has Countries -> Countries still exist, their continent_id becomes nil, sidebar shows "None" for parent
-- [ ] Layer dropdown in navbar shows Geographic and Political toggles, both active by default
-- [ ] Toggle Political layer off -> Country and City pins disappear, Continent and Ocean pins remain
-- [ ] Toggle Geographic layer off -> only Political pins visible
-- [ ] Toggle Political layer off while a City is selected -> sidebar closes, pin deselected
-- [ ] Toggle both layers off -> no pins visible, pin mode dropdown still shows all types (or only active layer types if implemented)
-- [ ] Switch maps -> layer toggles reset to all-active
-- [ ] Pan/zoom -> all pin types track correctly (same coordinate system)
-- [ ] `make test` -> all tests pass
+- [x] `make up` -> app boots, map loads, existing continent/ocean pins still work
+- [x] Pin button -> click map -> modal shows 4 entity types: Continent, Ocean, Country, City
+- [x] Create a Country pin -> amber-colored pin appears on map
+- [x] Create a City pin -> rose-colored pin appears on map
+- [x] Create a Country with a Continent parent selected -> sidebar shows parent link
+- [x] Click parent link in sidebar -> navigates to continent's pin (selects it, sidebar shows continent)
+- [x] Create a City with a Country parent selected -> sidebar shows country parent link
+- [x] Edit parent from sidebar (pencil -> dropdown -> save) -> parent updates
+- [x] Delete a Continent that has Countries -> Countries still exist, their continent_id becomes nil, sidebar shows "None" for parent
+- [x] Layer dropdown in navbar shows Geographic and Political toggles, both active by default
+- [x] Toggle Political layer off -> Country and City pins disappear, Continent and Ocean pins remain
+- [x] Toggle Geographic layer off -> only Political pins visible
+- [x] Toggle Political layer off while a City is selected -> sidebar closes, pin deselected
+- [x] Toggle both layers off -> no pins visible, pin mode dropdown still shows all types (or only active layer types if implemented)
+- [x] Switch maps -> layer toggles reset to all-active
+- [x] Pan/zoom -> all pin types track correctly (same coordinate system)
+- [x] `make test` -> all tests pass
 
 ---
 

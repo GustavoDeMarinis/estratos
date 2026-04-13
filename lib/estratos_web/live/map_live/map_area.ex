@@ -4,6 +4,7 @@ defmodule EstratosWeb.MapLive.MapArea do
   """
   use EstratosWeb, :html
 
+  alias Estratos.Layers
   alias EstratosWeb.MapLive.Sidebar
 
   attr :uploads, :map, required: true
@@ -22,6 +23,7 @@ defmodule EstratosWeb.MapLive.MapArea do
   attr :moving_pin, :any, required: true
   attr :continents_list, :list, required: true
   attr :countries_list, :list, required: true
+  attr :active_layers, :any, required: true
 
   def map_viewport(assigns) do
     ~H"""
@@ -35,7 +37,7 @@ defmodule EstratosWeb.MapLive.MapArea do
       <.map_tabs maps={@maps} map={@map} renaming={@renaming} sidebar_open={@sidebar_open} />
       <.map_actions :if={@map} map={@map} renaming={@renaming} />
       <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} pending_image={@pending_image} />
-      <.map_pins pins={@pins} pending_pin={@pending_pin} />
+      <.map_pins pins={@pins} pending_pin={@pending_pin} active_layers={@active_layers} />
       <Sidebar.sidebar
         selected_pin={@selected_pin}
         sidebar_open={@sidebar_open}
@@ -211,6 +213,7 @@ defmodule EstratosWeb.MapLive.MapArea do
 
   attr :pins, :list, required: true
   attr :pending_pin, :any, required: true
+  attr :active_layers, :any, required: true
 
   defp map_pins(assigns) do
     ~H"""
@@ -226,7 +229,7 @@ defmodule EstratosWeb.MapLive.MapArea do
         <.icon name="hero-map-pin-solid" class="w-7 h-7 text-primary drop-shadow" />
       </div>
       <div
-        :for={%{pin: pin, entity: entity} <- @pins}
+        :for={%{pin: pin, entity: entity} <- Enum.filter(@pins, fn %{pin: p} -> MapSet.member?(@active_layers, Layers.layer_for_entity_type(p.entity_type)) end)}
         data-pin
         data-pin-x={pin.x}
         data-pin-y={pin.y}

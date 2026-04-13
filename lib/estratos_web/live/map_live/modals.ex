@@ -4,6 +4,8 @@ defmodule EstratosWeb.MapLive.Modals do
   """
   use EstratosWeb, :html
 
+  alias Estratos.Layers
+
   attr :world, :map, required: true
   attr :mode, :atom, required: true, values: [:new, :edit]
 
@@ -96,6 +98,7 @@ defmodule EstratosWeb.MapLive.Modals do
   attr :pin_create_type, :string, required: true
   attr :continents_list, :list, required: true
   attr :countries_list, :list, required: true
+  attr :active_layers, :any, required: true
 
   def pin_create_modal(assigns) do
     ~H"""
@@ -106,10 +109,10 @@ defmodule EstratosWeb.MapLive.Modals do
           <label class="form-control w-full">
             <div class="label"><span class="label-text text-[13px]">Type</span></div>
             <select name="pin_type" class="select select-bordered w-full" required>
-              <option value="continent" selected={@pin_create_type == "continent"}>Continent</option>
-              <option value="ocean" selected={@pin_create_type == "ocean"}>Ocean</option>
-              <option value="country" selected={@pin_create_type == "country"}>Country</option>
-              <option value="city" selected={@pin_create_type == "city"}>City</option>
+              <%= for {value, label} <- [{"continent", "Continent"}, {"ocean", "Ocean"}, {"country", "Country"}, {"city", "City"}],
+                      MapSet.member?(@active_layers, Layers.layer_for_entity_type(value)) do %>
+                <option value={value} selected={@pin_create_type == value}><%= label %></option>
+              <% end %>
             </select>
           </label>
           <%!-- Parent dropdown for Country: optional Continent --%>

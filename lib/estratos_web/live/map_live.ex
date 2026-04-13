@@ -5,6 +5,7 @@ defmodule EstratosWeb.MapLive do
   alias Estratos.MapStorage
   alias Estratos.Entities
   alias Estratos.Pins
+  alias Estratos.Layers
   alias EstratosWeb.MapLive.{Navbar, MapArea, Modals}
 
   @impl true
@@ -37,6 +38,7 @@ defmodule EstratosWeb.MapLive do
       |> assign(:moving_pin, nil)
       |> assign(:confirm_move, nil)
       |> assign(:pin_create_type, "continent")
+      |> assign(:active_layers, Layers.all_slugs())
       |> load_pins()
       |> load_entity_lists()
       # max_entries: 2 allows selecting a replacement image while keeping the
@@ -65,6 +67,7 @@ defmodule EstratosWeb.MapLive do
         uploads={@uploads}
         pending_image={@pending_image}
         pin_mode={@pin_mode}
+        active_layers={@active_layers}
       />
       <MapArea.map_viewport
         uploads={@uploads}
@@ -83,6 +86,7 @@ defmodule EstratosWeb.MapLive do
         moving_pin={@moving_pin}
         continents_list={@continents_list}
         countries_list={@countries_list}
+        active_layers={@active_layers}
       />
       <Layouts.flash_group flash={@flash} />
       <Modals.world_modal :if={@world_modal} world={@editing_world || @world} mode={@world_modal} />
@@ -92,6 +96,7 @@ defmodule EstratosWeb.MapLive do
         pin_create_type={@pin_create_type}
         continents_list={@continents_list}
         countries_list={@countries_list}
+        active_layers={@active_layers}
       />
       <Modals.confirm_move_modal :if={@confirm_move} confirm_move={@confirm_move} />
     </div>
@@ -475,8 +480,37 @@ defmodule EstratosWeb.MapLive do
      |> assign(:map, map)
      |> assign(:image_broken, image_broken?(map))
      |> assign(:renaming, false)
+     |> assign(:active_layers, Layers.all_slugs())
      |> load_pins()
      |> load_entity_lists()}
+  end
+
+  @impl true
+  def handle_event("toggle_layer", %{"slug" => slug}, socket) do
+    active = socket.assigns.active_layers
+
+    new_active =
+      if MapSet.member?(active, slug),
+        do: MapSet.delete(active, slug),
+        else: MapSet.put(active, slug)
+
+    # Deselect current pin if its layer was just hidden
+    socket =
+      case socket.assigns.selected_pin do
+        %{pin: pin} ->
+          if not MapSet.member?(new_active, Layers.layer_for_entity_type(pin.entity_type)) do
+            socket
+            |> assign(:selected_pin, nil)
+            |> assign(:sidebar_open, false)
+          else
+            socket
+          end
+
+        nil ->
+          socket
+      end
+
+    {:noreply, assign(socket, :active_layers, new_active)}
   end
 
   # Map renaming

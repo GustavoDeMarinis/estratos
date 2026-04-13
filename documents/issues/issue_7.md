@@ -100,22 +100,22 @@ This section updates all existing callsites that pattern-match on entity_type. N
 
 ### Pin creation modal (`modals.ex`)
 
-- [ ] Add `<option value="country">Country</option>` and `<option value="city">City</option>` to the `pin_type` dropdown in `pin_create_modal`
+- [x] Add `<option value="country">Country</option>` and `<option value="city">City</option>` to the `pin_type` dropdown in `pin_create_modal`
 
 ### Pin colors (`map_area.ex`)
 
-- [ ] Add `pin_color_class("country")` returning `"text-amber-500"` (warm tone for political entities)
-- [ ] Add `pin_color_class("city")` returning `"text-rose-400"` (distinct from country)
+- [x] Add `pin_color_class("country")` returning `"text-amber-500"` (warm tone for political entities)
+- [x] Add `pin_color_class("city")` returning `"text-rose-400"` (distinct from country)
 
 ### `map_live.ex` event handlers
 
-- [ ] Update `handle_event("save_pin", ...)` — add `"country"` and `"city"` clauses that call `Entities.create_country/2` and `Entities.create_city/2`
-- [ ] Update `handle_event("delete_entity", ...)` — add clauses that call `Entities.delete_country/1` and `Entities.delete_city/1`
+- [x] Update `handle_event("save_pin", ...)` — add `"country"` and `"city"` clauses that call `Entities.create_country/2` and `Entities.create_city/2`
+- [x] Update `handle_event("delete_entity", ...)` — add clauses that call `Entities.delete_country/1` and `Entities.delete_city/1`
 
 ### Tasks
 
-- [ ] Verify that creating a Country or City pin follows the same flow as Continent/Ocean: toggle pin mode, click map, fill modal, save
-- [ ] Verify pin colors are visually distinct on the map
+- [x] Verify that creating a Country or City pin follows the same flow as Continent/Ocean: toggle pin mode, click map, fill modal, save
+- [x] Verify pin colors are visually distinct on the map
 
 ---
 

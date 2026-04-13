@@ -533,6 +533,8 @@ defmodule EstratosWeb.MapLive do
       case pin_type do
         "continent" -> Entities.create_continent(world, entity_attrs)
         "ocean" -> Entities.create_ocean(world, entity_attrs)
+        "country" -> Entities.create_country(world, entity_attrs)
+        "city" -> Entities.create_city(world, entity_attrs)
       end
 
     case result do
@@ -717,6 +719,8 @@ defmodule EstratosWeb.MapLive do
     case socket.assigns.selected_pin.pin.entity_type do
       "continent" -> Entities.delete_continent(entity)
       "ocean" -> Entities.delete_ocean(entity)
+      "country" -> Entities.delete_country(entity)
+      "city" -> Entities.delete_city(entity)
     end
 
     {:noreply,

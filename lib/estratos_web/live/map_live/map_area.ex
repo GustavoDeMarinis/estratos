@@ -248,6 +248,8 @@ defmodule EstratosWeb.MapLive.MapArea do
 
   defp pin_color_class("continent"), do: "text-green-500"
   defp pin_color_class("ocean"), do: "text-blue-500"
+  defp pin_color_class("country"), do: "text-amber-500"
+  defp pin_color_class("city"), do: "text-rose-400"
   defp pin_color_class(_), do: "text-base-content"
 
   defp zoom_controls(assigns) do

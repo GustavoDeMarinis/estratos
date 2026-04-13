@@ -104,6 +104,8 @@ defmodule EstratosWeb.MapLive.Modals do
             <select name="pin_type" class="select select-bordered w-full" required>
               <option value="continent">Continent</option>
               <option value="ocean">Ocean</option>
+              <option value="country">Country</option>
+              <option value="city">City</option>
             </select>
           </label>
           <label class="form-control w-full">

@@ -125,22 +125,22 @@ When creating a Country or City, the user can optionally assign a parent entity.
 
 ### Assigns
 
-- [ ] Add `:continents_list` assign to socket — loaded via `Entities.list_continents_for_world(world)`, refreshed on world change and after entity creation/deletion
-- [ ] Add `:countries_list` assign to socket — loaded via `Entities.list_countries_for_world(world)`, refreshed similarly
+- [x] Add `:continents_list` assign to socket — loaded via `Entities.list_continents_for_world(world)`, refreshed on world change and after entity creation/deletion
+- [x] Add `:countries_list` assign to socket — loaded via `Entities.list_countries_for_world(world)`, refreshed similarly
 
 ### Pin creation modal updates (`modals.ex`)
 
-- [ ] Add `attr :continents_list, :list, required: true` and `attr :countries_list, :list, required: true` to `pin_create_modal`
-- [ ] When selected type is `"country"`: render an optional `<select name="continent_id">` dropdown populated with `@continents_list`, with a blank "None" option
-- [ ] When selected type is `"city"`: render an optional `<select name="country_id">` dropdown populated with `@countries_list`, with a blank "None" option
-- [ ] When selected type is `"continent"` or `"ocean"`: no parent dropdown
+- [x] Add `attr :continents_list, :list, required: true` and `attr :countries_list, :list, required: true` to `pin_create_modal`
+- [x] When selected type is `"country"`: render an optional `<select name="continent_id">` dropdown populated with `@continents_list`, with a blank "None" option
+- [x] When selected type is `"city"`: render an optional `<select name="country_id">` dropdown populated with `@countries_list`, with a blank "None" option
+- [x] When selected type is `"continent"` or `"ocean"`: no parent dropdown
 
 ### `map_live.ex` updates
 
-- [ ] Pass `continents_list={@continents_list}` and `countries_list={@countries_list}` to `pin_create_modal` in render
-- [ ] Update `handle_event("save_pin", ...)` for `"country"` to pass `continent_id` from params (if present)
-- [ ] Update `handle_event("save_pin", ...)` for `"city"` to pass `country_id` from params (if present)
-- [ ] Refresh `continents_list` and `countries_list` after saving a pin (the new entity might be a continent or country that should appear in future dropdowns)
+- [x] Pass `continents_list={@continents_list}` and `countries_list={@countries_list}` to `pin_create_modal` in render
+- [x] Update `handle_event("save_pin", ...)` for `"country"` to pass `continent_id` from params (if present)
+- [x] Update `handle_event("save_pin", ...)` for `"city"` to pass `country_id` from params (if present)
+- [x] Refresh `continents_list` and `countries_list` after saving a pin (the new entity might be a continent or country that should appear in future dropdowns)
 
 ---
 

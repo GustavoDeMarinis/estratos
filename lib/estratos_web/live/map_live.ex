@@ -36,7 +36,9 @@ defmodule EstratosWeb.MapLive do
       |> assign(:editing_fields, MapSet.new())
       |> assign(:moving_pin, nil)
       |> assign(:confirm_move, nil)
+      |> assign(:pin_create_type, "continent")
       |> load_pins()
+      |> load_entity_lists()
       # max_entries: 2 allows selecting a replacement image while keeping the
       # current preview — validate cancels the older entry once the new one arrives.
       |> allow_upload(:map_image,
@@ -83,7 +85,12 @@ defmodule EstratosWeb.MapLive do
       <Layouts.flash_group flash={@flash} />
       <Modals.world_modal :if={@world_modal} world={@editing_world || @world} mode={@world_modal} />
       <Modals.name_map_modal :if={@naming_new_map} />
-      <Modals.pin_create_modal :if={@pending_pin} />
+      <Modals.pin_create_modal
+        :if={@pending_pin}
+        pin_create_type={@pin_create_type}
+        continents_list={@continents_list}
+        countries_list={@countries_list}
+      />
       <Modals.confirm_move_modal :if={@confirm_move} confirm_move={@confirm_move} />
     </div>
     """
@@ -92,6 +99,13 @@ defmodule EstratosWeb.MapLive do
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
+
+  defp load_entity_lists(socket) do
+    world = socket.assigns.world
+    socket
+    |> assign(:continents_list, Entities.list_continents_for_world(world))
+    |> assign(:countries_list, Entities.list_countries_for_world(world))
+  end
 
   defp load_pins(socket) do
     case socket.assigns.map do
@@ -423,7 +437,8 @@ defmodule EstratosWeb.MapLive do
      |> assign(:map, map)
      |> assign(:image_broken, image_broken?(map))
      |> assign(:renaming, false)
-     |> load_pins()}
+     |> load_pins()
+     |> load_entity_lists()}
   end
 
   # Map renaming
@@ -503,15 +518,18 @@ defmodule EstratosWeb.MapLive do
   @impl true
   def handle_event("pin_clicked", %{"x" => x, "y" => y}, socket) do
     if socket.assigns.pin_mode do
-      {:noreply, assign(socket, :pending_pin, %{x: x, y: y})}
+      {:noreply,
+       socket
+       |> assign(:pending_pin, %{x: x, y: y})
+       |> assign(:pin_create_type, "continent")}
     else
       {:noreply, socket}
     end
   end
 
   @impl true
-  def handle_event("pin_type_changed", _params, socket) do
-    {:noreply, socket}
+  def handle_event("pin_type_changed", %{"pin_type" => pin_type}, socket) do
+    {:noreply, assign(socket, :pin_create_type, pin_type)}
   end
 
   @impl true
@@ -529,12 +547,17 @@ defmodule EstratosWeb.MapLive do
       display_name: if(display_name == "", do: nil, else: String.trim(display_name))
     }
 
+    parse_id = fn key -> case Map.get(params, key, "") do
+      "" -> nil
+      id -> String.to_integer(id)
+    end end
+
     result =
       case pin_type do
         "continent" -> Entities.create_continent(world, entity_attrs)
         "ocean" -> Entities.create_ocean(world, entity_attrs)
-        "country" -> Entities.create_country(world, entity_attrs)
-        "city" -> Entities.create_city(world, entity_attrs)
+        "country" -> Entities.create_country(world, Map.put(entity_attrs, :continent_id, parse_id.("continent_id")))
+        "city" -> Entities.create_city(world, Map.put(entity_attrs, :country_id, parse_id.("country_id")))
       end
 
     case result do
@@ -552,7 +575,8 @@ defmodule EstratosWeb.MapLive do
          socket
          |> assign(:pending_pin, nil)
          |> assign(:pin_mode, false)
-         |> load_pins()}
+         |> load_pins()
+         |> load_entity_lists()}
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to save pin — name is required")}

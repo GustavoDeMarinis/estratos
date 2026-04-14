@@ -4,6 +4,8 @@ defmodule EstratosWeb.MapLive.Modals do
   """
   use EstratosWeb, :html
 
+  alias Estratos.Layers
+
   attr :world, :map, required: true
   attr :mode, :atom, required: true, values: [:new, :edit]
 
@@ -93,6 +95,11 @@ defmodule EstratosWeb.MapLive.Modals do
     """
   end
 
+  attr :pin_create_type, :string, required: true
+  attr :continents_list, :list, required: true
+  attr :countries_list, :list, required: true
+  attr :active_layers, :any, required: true
+
   def pin_create_modal(assigns) do
     ~H"""
     <div class="modal modal-open modal-middle">
@@ -102,8 +109,26 @@ defmodule EstratosWeb.MapLive.Modals do
           <label class="form-control w-full">
             <div class="label"><span class="label-text text-[13px]">Type</span></div>
             <select name="pin_type" class="select select-bordered w-full" required>
-              <option value="continent">Continent</option>
-              <option value="ocean">Ocean</option>
+              <%= for {value, label} <- [{"continent", "Continent"}, {"ocean", "Ocean"}, {"country", "Country"}, {"city", "City"}],
+                      MapSet.member?(@active_layers, Layers.layer_for_entity_type(value)) do %>
+                <option value={value} selected={@pin_create_type == value}><%= label %></option>
+              <% end %>
+            </select>
+          </label>
+          <%!-- Parent dropdown for Country: optional Continent --%>
+          <label :if={@pin_create_type == "country"} class="form-control w-full">
+            <div class="label"><span class="label-text text-[13px]">Continent <span class="text-base-content/40">(optional)</span></span></div>
+            <select name="continent_id" class="select select-bordered w-full">
+              <option value="">None</option>
+              <option :for={c <- @continents_list} value={c.id}><%= c.display_name || c.name %></option>
+            </select>
+          </label>
+          <%!-- Parent dropdown for City: optional Country --%>
+          <label :if={@pin_create_type == "city"} class="form-control w-full">
+            <div class="label"><span class="label-text text-[13px]">Country <span class="text-base-content/40">(optional)</span></span></div>
+            <select name="country_id" class="select select-bordered w-full">
+              <option value="">None</option>
+              <option :for={c <- @countries_list} value={c.id}><%= c.display_name || c.name %></option>
             </select>
           </label>
           <label class="form-control w-full">

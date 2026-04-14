@@ -9,6 +9,8 @@ defmodule EstratosWeb.MapLive.Sidebar do
   attr :field_values, :map, required: true
   attr :editing_fields, :any, required: true
   attr :moving_pin, :any, required: true
+  attr :continents_list, :list, required: true
+  attr :countries_list, :list, required: true
 
   def sidebar(assigns) do
     ~H"""
@@ -33,6 +35,8 @@ defmodule EstratosWeb.MapLive.Sidebar do
                 selected_pin={@selected_pin}
                 field_values={@field_values}
                 editing_fields={@editing_fields}
+                continents_list={@continents_list}
+                countries_list={@countries_list}
               />
             <% end %>
           </div>
@@ -96,9 +100,15 @@ defmodule EstratosWeb.MapLive.Sidebar do
     """
   end
 
+  defp parent_options("country", continents_list, _countries_list), do: continents_list
+  defp parent_options("city", _continents_list, countries_list), do: countries_list
+  defp parent_options(_, _, _), do: []
+
   attr :selected_pin, :map, required: true
   attr :field_values, :map, required: true
   attr :editing_fields, :any, required: true
+  attr :continents_list, :list, required: true
+  attr :countries_list, :list, required: true
 
   defp entity_form(assigns) do
     ~H"""
@@ -167,6 +177,50 @@ defmodule EstratosWeb.MapLive.Sidebar do
           </button>
         </div>
       </fieldset>
+
+      <%!-- Parent field — only for entity types that have a parent FK --%>
+      <%= if @selected_pin.pin.entity_type in ["country", "city"] do %>
+        <fieldset class="flex flex-col gap-1">
+          <legend class="text-[10px] uppercase tracking-wide text-base-content/40">
+            <%= if @selected_pin.pin.entity_type == "country", do: "Continent", else: "Country" %>
+          </legend>
+          <div class="flex items-center gap-2">
+            <%= if MapSet.member?(@editing_fields, "parent") do %>
+              <select name="parent_id" class="select select-sm select-bordered w-full flex-1">
+                <option value="">None</option>
+                <%= for p <- parent_options(@selected_pin.pin.entity_type, @continents_list, @countries_list) do %>
+                  <option value={p.id} selected={to_string(p.id) == @field_values["parent_id"]}>
+                    <%= p.display_name || p.name %>
+                  </option>
+                <% end %>
+              </select>
+            <% else %>
+              <%= if @selected_pin.parent do %>
+                <button
+                  type="button"
+                  phx-click="navigate_to_parent"
+                  class="text-sm text-primary hover:underline text-left flex-1 truncate"
+                >
+                  <%= @selected_pin.parent.display_name || @selected_pin.parent.name %>
+                </button>
+              <% else %>
+                <span class="text-sm text-base-content/40 flex-1">None</span>
+              <% end %>
+            <% end %>
+            <button
+              type="button"
+              phx-click="toggle_field_edit"
+              phx-value-field="parent"
+              class="btn btn-ghost btn-xs shrink-0"
+            >
+              <.icon
+                name={if MapSet.member?(@editing_fields, "parent"), do: "hero-check-micro", else: "hero-pencil-square-micro"}
+                class="w-4 h-4"
+              />
+            </button>
+          </div>
+        </fieldset>
+      <% end %>
 
       <%!-- Position field (read-only) --%>
       <fieldset class="flex flex-col gap-1">

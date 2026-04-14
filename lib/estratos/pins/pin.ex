@@ -21,7 +21,7 @@ defmodule Estratos.Pins.Pin do
     pin
     |> cast(attrs, [:entity_type, :entity_id, :map_id, :x, :y])
     |> validate_required([:entity_type, :entity_id, :map_id, :x, :y])
-    |> validate_inclusion(:entity_type, ["continent", "ocean"])
+    |> validate_inclusion(:entity_type, ["continent", "ocean", "country", "city"])
     |> validate_number(:x, greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0)
     |> validate_number(:y, greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0)
   end

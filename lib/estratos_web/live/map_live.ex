@@ -6,6 +6,7 @@ defmodule EstratosWeb.MapLive do
   alias Estratos.Entities
   alias Estratos.Pins
   alias Estratos.Layers
+  alias Estratos.EntityTypes
   alias EstratosWeb.MapLive.{Navbar, MapArea, Modals}
 
   @impl true
@@ -84,8 +85,7 @@ defmodule EstratosWeb.MapLive do
         field_values={@field_values}
         editing_fields={@editing_fields}
         moving_pin={@moving_pin}
-        continents_list={@continents_list}
-        countries_list={@countries_list}
+        entity_lists={@entity_lists}
         active_layers={@active_layers}
       />
       <Layouts.flash_group flash={@flash} />
@@ -94,8 +94,7 @@ defmodule EstratosWeb.MapLive do
       <Modals.pin_create_modal
         :if={@pending_pin}
         pin_create_type={@pin_create_type}
-        continents_list={@continents_list}
-        countries_list={@countries_list}
+        entity_lists={@entity_lists}
         active_layers={@active_layers}
       />
       <Modals.confirm_move_modal :if={@confirm_move} confirm_move={@confirm_move} />
@@ -109,32 +108,42 @@ defmodule EstratosWeb.MapLive do
 
   defp load_entity_lists(socket) do
     world = socket.assigns.world
-    socket
-    |> assign(:continents_list, Entities.list_continents_for_world(world))
-    |> assign(:countries_list, Entities.list_countries_for_world(world))
+
+    entity_lists =
+      EntityTypes.list_types()
+      |> Enum.filter(& &1.parent_type)
+      |> Enum.map(& &1.parent_type)
+      |> Enum.uniq()
+      |> Map.new(fn parent_slug ->
+        type_info = EntityTypes.get_type(parent_slug)
+        {parent_slug, apply(Entities, type_info.list_fn, [world])}
+      end)
+
+    assign(socket, :entity_lists, entity_lists)
   end
 
-  # Loads the parent entity for a pin (continent for country, country for city).
-  defp load_parent(%{entity_type: "country"}, %{continent_id: id}) when not is_nil(id) do
-    Entities.get_continent!(id)
+  # Loads the parent entity for a pin using the registry.
+  defp load_parent(%{entity_type: entity_type}, entity) do
+    with parent_slug when not is_nil(parent_slug) <- EntityTypes.parent_type(entity_type),
+         fk when not is_nil(fk) <- EntityTypes.parent_fk(entity_type),
+         parent_id when not is_nil(parent_id) <- Map.get(entity, fk) do
+      parent_type_info = EntityTypes.get_type(parent_slug)
+      apply(Entities, parent_type_info.get_fn, [parent_id])
+    else
+      _ -> nil
+    end
   end
-
-  defp load_parent(%{entity_type: "city"}, %{country_id: id}) when not is_nil(id) do
-    Entities.get_country!(id)
-  end
-
-  defp load_parent(_pin, _entity), do: nil
 
   # Builds the selected_pin assign and related assigns after selecting a pin.
   defp apply_select_pin(socket, pin) do
     entity = Pins.get_entity_for_pin(pin)
     parent = load_parent(pin, entity)
 
-    parent_id = case pin.entity_type do
-      "country" -> to_string(entity.continent_id || "")
-      "city" -> to_string(entity.country_id || "")
-      _ -> ""
-    end
+    parent_id =
+      case EntityTypes.parent_fk(pin.entity_type) do
+        nil -> ""
+        fk -> to_string(Map.get(entity, fk) || "")
+      end
 
     field_values = %{
       "name" => entity.name,
@@ -498,7 +507,8 @@ defmodule EstratosWeb.MapLive do
     socket =
       case socket.assigns.selected_pin do
         %{pin: pin} ->
-          if not MapSet.member?(new_active, Layers.layer_for_entity_type(pin.entity_type)) do
+          type_info = EntityTypes.get_type(pin.entity_type)
+          if type_info && not MapSet.member?(new_active, type_info.layer) do
             socket
             |> assign(:selected_pin, nil)
             |> assign(:sidebar_open, false)
@@ -619,18 +629,22 @@ defmodule EstratosWeb.MapLive do
       display_name: if(display_name == "", do: nil, else: String.trim(display_name))
     }
 
-    parse_id = fn key -> case Map.get(params, key, "") do
-      "" -> nil
-      id -> String.to_integer(id)
-    end end
-
-    result =
-      case pin_type do
-        "continent" -> Entities.create_continent(world, entity_attrs)
-        "ocean" -> Entities.create_ocean(world, entity_attrs)
-        "country" -> Entities.create_country(world, Map.put(entity_attrs, :continent_id, parse_id.("continent_id")))
-        "city" -> Entities.create_city(world, Map.put(entity_attrs, :country_id, parse_id.("country_id")))
+    parse_id = fn key ->
+      case Map.get(params, key, "") do
+        "" -> nil
+        id -> String.to_integer(id)
       end
+    end
+
+    type_info = EntityTypes.get_type(pin_type)
+
+    parent_attrs =
+      case type_info.parent_fk do
+        nil -> %{}
+        fk -> %{fk => parse_id.(to_string(fk))}
+      end
+
+    result = apply(Entities, type_info.create_fn, [world, Map.merge(entity_attrs, parent_attrs)])
 
     case result do
       {:ok, entity} ->
@@ -681,10 +695,7 @@ defmodule EstratosWeb.MapLive do
     parent = socket.assigns.selected_pin.parent
     entity_type = socket.assigns.selected_pin.pin.entity_type
 
-    parent_entity_type = case entity_type do
-      "country" -> "continent"
-      "city" -> "country"
-    end
+    parent_entity_type = EntityTypes.parent_type(entity_type)
 
     parent_pin_entry =
       Enum.find(socket.assigns.pins, fn %{pin: p} ->
@@ -734,11 +745,10 @@ defmodule EstratosWeb.MapLive do
             id -> String.to_integer(id)
           end
 
+        type_info = EntityTypes.get_type(pin.entity_type)
+
         {:ok, updated_entity} =
-          case pin.entity_type do
-            "country" -> Entities.update_country(entity, %{continent_id: parent_id})
-            "city" -> Entities.update_city(entity, %{country_id: parent_id})
-          end
+          apply(Entities, type_info.update_fn, [entity, %{type_info.parent_fk => parent_id}])
 
         new_parent = load_parent(pin, updated_entity)
 
@@ -752,13 +762,10 @@ defmodule EstratosWeb.MapLive do
         value = Map.get(socket.assigns.field_values, field, "")
         entity_attrs = %{String.to_atom(field) => if(value == "", do: nil, else: String.trim(value))}
 
+        type_info = EntityTypes.get_type(pin.entity_type)
+
         {:ok, updated_entity} =
-          case pin.entity_type do
-            "continent" -> Entities.update_continent(entity, entity_attrs)
-            "ocean" -> Entities.update_ocean(entity, entity_attrs)
-            "country" -> Entities.update_country(entity, entity_attrs)
-            "city" -> Entities.update_city(entity, entity_attrs)
-          end
+          apply(Entities, type_info.update_fn, [entity, entity_attrs])
 
         updated_field_values =
           Map.put(socket.assigns.field_values, field, Map.get(updated_entity, String.to_atom(field)) || "")
@@ -841,12 +848,8 @@ defmodule EstratosWeb.MapLive do
   def handle_event("delete_entity", _params, socket) do
     %{pin: _pin, entity: entity} = socket.assigns.selected_pin
 
-    case socket.assigns.selected_pin.pin.entity_type do
-      "continent" -> Entities.delete_continent(entity)
-      "ocean" -> Entities.delete_ocean(entity)
-      "country" -> Entities.delete_country(entity)
-      "city" -> Entities.delete_city(entity)
-    end
+    type_info = EntityTypes.get_type(socket.assigns.selected_pin.pin.entity_type)
+    apply(Entities, type_info.delete_fn, [entity])
 
     {:noreply,
      socket

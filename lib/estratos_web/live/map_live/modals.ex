@@ -4,6 +4,7 @@ defmodule EstratosWeb.MapLive.Modals do
   """
   use EstratosWeb, :html
 
+  alias Estratos.EntityTypes
   alias Estratos.Layers
 
   attr :world, :map, required: true
@@ -96,8 +97,7 @@ defmodule EstratosWeb.MapLive.Modals do
   end
 
   attr :pin_create_type, :string, required: true
-  attr :continents_list, :list, required: true
-  attr :countries_list, :list, required: true
+  attr :entity_lists, :map, required: true
   attr :active_layers, :any, required: true
 
   def pin_create_modal(assigns) do
@@ -109,26 +109,26 @@ defmodule EstratosWeb.MapLive.Modals do
           <label class="form-control w-full">
             <div class="label"><span class="label-text text-[13px]">Type</span></div>
             <select name="pin_type" class="select select-bordered w-full" required>
-              <%= for {value, label} <- [{"continent", "Continent"}, {"ocean", "Ocean"}, {"country", "Country"}, {"city", "City"}],
-                      MapSet.member?(@active_layers, Layers.layer_for_entity_type(value)) do %>
-                <option value={value} selected={@pin_create_type == value}><%= label %></option>
+              <%= for t <- EntityTypes.list_types(),
+                      MapSet.member?(@active_layers, t.layer) do %>
+                <option value={t.slug} selected={@pin_create_type == t.slug}><%= t.name %></option>
               <% end %>
             </select>
           </label>
-          <%!-- Parent dropdown for Country: optional Continent --%>
-          <label :if={@pin_create_type == "country"} class="form-control w-full">
-            <div class="label"><span class="label-text text-[13px]">Continent <span class="text-base-content/40">(optional)</span></span></div>
-            <select name="continent_id" class="select select-bordered w-full">
+          <%!-- Parent dropdown — rendered generically for any type that has a parent --%>
+          <% parent_type = EntityTypes.parent_type(@pin_create_type) %>
+          <label :if={parent_type} class="form-control w-full">
+            <div class="label">
+              <span class="label-text text-[13px]">
+                <%= EntityTypes.name(parent_type) %>
+                <span class="text-base-content/40">(optional)</span>
+              </span>
+            </div>
+            <select name={EntityTypes.parent_fk(@pin_create_type)} class="select select-bordered w-full">
               <option value="">None</option>
-              <option :for={c <- @continents_list} value={c.id}><%= c.display_name || c.name %></option>
-            </select>
-          </label>
-          <%!-- Parent dropdown for City: optional Country --%>
-          <label :if={@pin_create_type == "city"} class="form-control w-full">
-            <div class="label"><span class="label-text text-[13px]">Country <span class="text-base-content/40">(optional)</span></span></div>
-            <select name="country_id" class="select select-bordered w-full">
-              <option value="">None</option>
-              <option :for={c <- @countries_list} value={c.id}><%= c.display_name || c.name %></option>
+              <option :for={p <- Map.get(@entity_lists, parent_type, [])} value={p.id}>
+                <%= p.display_name || p.name %>
+              </option>
             </select>
           </label>
           <label class="form-control w-full">

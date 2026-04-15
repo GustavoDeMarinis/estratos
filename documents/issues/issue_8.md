@@ -81,10 +81,10 @@ Clear the tech debt item tracked in `TECH_DEBT.md`. Replace the four hardcoded c
 
 ### Tasks
 
-- [ ] Create migration for `relationships` table with all fields above; `attributes` as `:map` with default `%{}`; all four polymorphic columns non-null
-- [ ] Add composite indexes: `(source_type, source_id)` and `(target_type, target_id)` — relationships are queried by either end
-- [ ] Create `Estratos.Relationships.Relationship` Ecto schema with changeset
-- [ ] Changeset validates: all required fields present; `source_type` and `target_type` must be valid slugs in `EntityTypes.list_types/0`; `source` ≠ `target` (no self-relationships — validate that `{source_type, source_id}` ≠ `{target_type, target_id}`)
+- [x] Create migration for `relationships` table with all fields above; `attributes` as `:map` with default `%{}`; all four polymorphic columns non-null
+- [x] Add composite indexes: `(source_type, source_id)` and `(target_type, target_id)` — relationships are queried by either end
+- [x] Create `Estratos.Relationships.Relationship` Ecto schema with changeset
+- [x] Changeset validates: all required fields present; `source_type` and `target_type` must be valid slugs in `EntityTypes.list_types/0`; `source` ≠ `target` (no self-relationships — validate that `{source_type, source_id}` ≠ `{target_type, target_id}`)
 
 ---
 

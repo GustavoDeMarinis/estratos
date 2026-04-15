@@ -92,27 +92,27 @@ Clear the tech debt item tracked in `TECH_DEBT.md`. Replace the four hardcoded c
 
 ### `Estratos.Relationships` context
 
-- [ ] `create_relationship(attrs)` — inserts a new relationship
-- [ ] `get_relationship!(id)` — standard fetch
-- [ ] `update_relationship(relationship, attrs)` — only `type` and `attributes` should be updatable (not source/target — create a new one instead)
-- [ ] `delete_relationship(relationship)` — standard delete
-- [ ] `list_relationships_for_entity(entity_type, entity_id)` — returns all relationships where the entity is either source OR target, ordered by inserted_at
-- [ ] `delete_relationships_for_entity(entity_type, entity_id)` — bulk-delete all relationships where the entity is source OR target (called from entity-delete flows)
-- [ ] Update `Entities.delete_continent/1`, `delete_ocean/1`, `delete_country/1`, `delete_city/1` — call `Relationships.delete_relationships_for_entity/2` before deleting the entity itself (or use the registry dispatch to do this centrally in `map_live.ex delete_entity`)
+- [x] `create_relationship(attrs)` — inserts a new relationship
+- [x] `get_relationship!(id)` — standard fetch
+- [x] `update_relationship(relationship, attrs)` — only `type` and `attributes` are updatable via `update_changeset/2`
+- [x] `delete_relationship(relationship)` — standard delete
+- [x] `list_relationships_for_entity(entity_type, entity_id)` — returns all relationships where the entity is either source OR target, ordered by inserted_at
+- [x] `delete_relationships_for_entity(entity_type, entity_id)` — bulk-delete all relationships where the entity is source OR target
+- [x] Updated `Entities.delete_continent/1`, `delete_ocean/1`, `delete_country/1`, `delete_city/1` — call `Relationships.delete_relationships_for_entity/2` before deleting
 
 ### Tests (`test/estratos/relationships_test.exs`)
 
-- [ ] `create_relationship/1` creates a relationship with valid fields
-- [ ] `create_relationship/1` rejects missing fields
-- [ ] `create_relationship/1` rejects invalid entity types
-- [ ] `create_relationship/1` rejects self-relationships
-- [ ] `list_relationships_for_entity/2` returns relationships where entity is source
-- [ ] `list_relationships_for_entity/2` returns relationships where entity is target
-- [ ] `list_relationships_for_entity/2` does not return relationships where entity is uninvolved
-- [ ] `update_relationship/2` updates type and attributes
-- [ ] `delete_relationship/1` deletes the relationship only
-- [ ] `delete_relationships_for_entity/2` deletes all relationships involving the entity
-- [ ] Deleting an entity (via `Entities.delete_*`) also deletes its relationships
+- [x] `create_relationship/1` creates a relationship with valid fields
+- [x] `create_relationship/1` rejects missing fields
+- [x] `create_relationship/1` rejects invalid entity types
+- [x] `create_relationship/1` rejects self-relationships
+- [x] `list_relationships_for_entity/2` returns relationships where entity is source
+- [x] `list_relationships_for_entity/2` returns relationships where entity is target
+- [x] `list_relationships_for_entity/2` does not return relationships where entity is uninvolved
+- [x] `update_relationship/2` updates type and attributes
+- [x] `delete_relationship/1` deletes the relationship only
+- [x] `delete_relationships_for_entity/2` deletes all relationships involving the entity
+- [x] Deleting an entity (via `Entities.delete_*`) also deletes its relationships
 
 ---
 

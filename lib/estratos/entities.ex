@@ -7,6 +7,7 @@ defmodule Estratos.Entities do
   alias Estratos.Entities.Country
   alias Estratos.Entities.City
   alias Estratos.Pins
+  alias Estratos.Relationships
 
   # ---------------------------------------------------------------------------
   # Continents
@@ -28,6 +29,7 @@ defmodule Estratos.Entities do
 
   def delete_continent(%Continent{} = continent) do
     Pins.delete_pins_for_entity("continent", continent.id)
+    Relationships.delete_relationships_for_entity("continent", continent.id)
     Repo.delete(continent)
   end
 
@@ -51,6 +53,7 @@ defmodule Estratos.Entities do
 
   def delete_ocean(%Ocean{} = ocean) do
     Pins.delete_pins_for_entity("ocean", ocean.id)
+    Relationships.delete_relationships_for_entity("ocean", ocean.id)
     Repo.delete(ocean)
   end
 
@@ -82,6 +85,7 @@ defmodule Estratos.Entities do
 
   def delete_country(%Country{} = country) do
     Pins.delete_pins_for_entity("country", country.id)
+    Relationships.delete_relationships_for_entity("country", country.id)
     Repo.delete(country)
   end
 
@@ -109,6 +113,7 @@ defmodule Estratos.Entities do
 
   def delete_city(%City{} = city) do
     Pins.delete_pins_for_entity("city", city.id)
+    Relationships.delete_relationships_for_entity("city", city.id)
     Repo.delete(city)
   end
 

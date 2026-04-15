@@ -27,6 +27,13 @@ defmodule Estratos.Relationships.Relationship do
     |> validate_not_self_relationship()
   end
 
+  @doc "Changeset for updates — only type and attributes are mutable."
+  def update_changeset(relationship, attrs) do
+    relationship
+    |> cast(attrs, [:type, :attributes])
+    |> validate_required([:type])
+  end
+
   defp validate_not_self_relationship(changeset) do
     source_type = get_field(changeset, :source_type)
     source_id = get_field(changeset, :source_id)

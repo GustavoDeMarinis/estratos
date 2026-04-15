@@ -151,12 +151,11 @@ Small polish — give the selected pin a visible highlight on the map.
 
 ### Tasks
 
-- [ ] In `map_area.ex map_pins`, detect whether each pin is the currently selected one (`selected_pin && selected_pin.pin.id == pin.id`)
-- [ ] Apply a `ring-2 ring-primary ring-offset-2 ring-offset-base-100 rounded-full` wrapper (or equivalent Tailwind classes) to the selected pin's container
-- [ ] Alternative if ring clashes visually: render a larger, faded version of the same icon behind the pin (absolute-positioned, `opacity-40`, `scale-150`)
-- [ ] Ensure the indicator does not shift the pin's anchor point — the pin tip must still land on the correct map coordinate
-- [ ] Ensure hover state (existing) still works on top of the selected state — selected pin can still be hovered
-- [ ] Deselecting (clicking elsewhere, toggling layer off, deleting) removes the indicator
+- [x] Pass `selected_pin` attr to `map_pins` component
+- [x] Each pin container wrapped in `relative w-7 h-7` div to fix the layout box size
+- [x] Ghost icon (`absolute inset-0 w-7 h-7 scale-[1.5] opacity-30`) rendered behind the real icon when pin is selected — doesn't affect layout or anchor point
+- [x] Hover tooltip still works (sits outside the fixed wrapper, positioned absolutely from the outer container)
+- [x] Deselecting (layer toggle, clicking elsewhere, deleting) removes the indicator since `selected_pin` becomes nil
 
 ---
 

@@ -39,7 +39,7 @@ defmodule EstratosWeb.MapLive.MapArea do
       <.map_tabs maps={@maps} map={@map} renaming={@renaming} sidebar_open={@sidebar_open} />
       <.map_actions :if={@map} map={@map} renaming={@renaming} />
       <.map_image uploads={@uploads} map={@map} image_broken={@image_broken} pending_image={@pending_image} />
-      <.map_pins pins={@pins} pending_pin={@pending_pin} active_layers={@active_layers} />
+      <.map_pins pins={@pins} pending_pin={@pending_pin} active_layers={@active_layers} selected_pin={@selected_pin} />
       <Sidebar.sidebar
         selected_pin={@selected_pin}
         sidebar_open={@sidebar_open}
@@ -217,6 +217,7 @@ defmodule EstratosWeb.MapLive.MapArea do
   attr :pins, :list, required: true
   attr :pending_pin, :any, required: true
   attr :active_layers, :any, required: true
+  attr :selected_pin, :any, required: true
 
   defp map_pins(assigns) do
     ~H"""
@@ -246,10 +247,21 @@ defmodule EstratosWeb.MapLive.MapArea do
         class="absolute pointer-events-auto group cursor-pointer"
         style="transform: translate(-50%, -100%)"
       >
-        <.icon
-          name="hero-map-pin-solid"
-          class={"w-7 h-7 drop-shadow #{EntityTypes.color(pin.entity_type)}"}
-        />
+        <%!-- Fixed-size wrapper keeps the anchor point stable regardless of selection state --%>
+        <div class="relative w-7 h-7">
+          <%!-- Selection indicator: ghost icon scaled up behind the real one.
+               absolute + inset-0 means it never affects layout; scale-[1.5] + opacity
+               gives a halo effect without moving the pin tip. --%>
+          <.icon
+            :if={@selected_pin && @selected_pin.pin.id == pin.id}
+            name="hero-map-pin-solid"
+            class={"absolute inset-0 w-7 h-7 scale-[1.5] opacity-30 #{EntityTypes.color(pin.entity_type)}"}
+          />
+          <.icon
+            name="hero-map-pin-solid"
+            class={"w-7 h-7 drop-shadow #{EntityTypes.color(pin.entity_type)}"}
+          />
+        </div>
         <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block pointer-events-none z-10">
           <div class="bg-base-100 border border-base-content/20 rounded-lg shadow-lg px-2 py-1.5 text-center whitespace-nowrap">
             <p class="text-xs font-bold"><%= entity.display_name || entity.name %></p>

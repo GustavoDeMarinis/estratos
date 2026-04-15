@@ -12,6 +12,8 @@ defmodule EstratosWeb.MapLive.Sidebar do
   attr :editing_fields, :any, required: true
   attr :moving_pin, :any, required: true
   attr :entity_lists, :map, required: true
+  attr :adding_relationship, :boolean, required: true
+  attr :new_relationship_target_type, :string, required: true
 
   def sidebar(assigns) do
     ~H"""
@@ -36,6 +38,12 @@ defmodule EstratosWeb.MapLive.Sidebar do
                 selected_pin={@selected_pin}
                 field_values={@field_values}
                 editing_fields={@editing_fields}
+                entity_lists={@entity_lists}
+              />
+              <.relationships_section
+                selected_pin={@selected_pin}
+                adding_relationship={@adding_relationship}
+                new_relationship_target_type={@new_relationship_target_type}
                 entity_lists={@entity_lists}
               />
             <% end %>
@@ -226,6 +234,110 @@ defmodule EstratosWeb.MapLive.Sidebar do
         </p>
       </fieldset>
     </form>
+    """
+  end
+
+  attr :selected_pin, :map, required: true
+  attr :adding_relationship, :boolean, required: true
+  attr :new_relationship_target_type, :string, required: true
+  attr :entity_lists, :map, required: true
+
+  defp relationships_section(assigns) do
+    ~H"""
+    <div class="border-t border-base-content/10 mt-3 pt-3 flex flex-col gap-1">
+      <%!-- Section header --%>
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[10px] uppercase tracking-wide text-base-content/40">Relationships</span>
+        <button
+          :if={!@adding_relationship}
+          type="button"
+          phx-click="toggle_add_relationship"
+          class="btn btn-ghost btn-xs"
+          title="Add relationship"
+        >
+          <.icon name="hero-plus-micro" class="w-3 h-3" />
+        </button>
+      </div>
+
+      <%!-- Relationship list --%>
+      <%= for entry <- @selected_pin.relationships do %>
+        <div class="flex items-center gap-1 py-0.5 min-w-0">
+          <span class="text-base-content/40 text-xs shrink-0 font-mono">
+            <%= if entry.direction == :source, do: "→", else: "←" %>
+          </span>
+          <span class="text-[10px] text-base-content/50 shrink-0 italic truncate max-w-[55px]" title={entry.relationship.type}>
+            <%= entry.relationship.type %>
+          </span>
+          <button
+            type="button"
+            phx-click="navigate_to_relationship_target"
+            phx-value-id={entry.relationship.id}
+            class="text-xs text-primary hover:underline flex-1 text-left truncate"
+          >
+            <%= entry.other_entity.display_name || entry.other_entity.name %>
+          </button>
+          <button
+            type="button"
+            phx-click="delete_relationship"
+            phx-value-id={entry.relationship.id}
+            phx-confirm="Remove this relationship?"
+            class="btn btn-ghost btn-xs shrink-0 text-error opacity-50 hover:opacity-100 p-0 min-h-0 h-auto"
+            title="Remove relationship"
+          >
+            <.icon name="hero-x-mark-micro" class="w-3 h-3" />
+          </button>
+        </div>
+      <% end %>
+
+      <%= if Enum.empty?(@selected_pin.relationships) and not @adding_relationship do %>
+        <p class="text-xs text-base-content/30 italic">None</p>
+      <% end %>
+
+      <%!-- Inline add form --%>
+      <form
+        :if={@adding_relationship}
+        phx-submit="add_relationship"
+        phx-change="relationship_form_changed"
+        class="flex flex-col gap-1.5 mt-1"
+      >
+        <input
+          type="text"
+          name="type"
+          placeholder="e.g. contains, allied_with…"
+          list="relationship-type-suggestions"
+          class="input input-xs input-bordered w-full"
+          required
+          autofocus
+        />
+        <datalist id="relationship-type-suggestions">
+          <option value="contains" />
+          <option value="allied_with" />
+          <option value="at_war_with" />
+          <option value="trades_with" />
+          <option value="borders" />
+          <option value="controls" />
+        </datalist>
+        <select name="target_type" class="select select-xs select-bordered w-full" required>
+          <%= for t <- EntityTypes.list_types() do %>
+            <option value={t.slug} selected={@new_relationship_target_type == t.slug}>
+              <%= t.name %>
+            </option>
+          <% end %>
+        </select>
+        <select name="target_id" class="select select-xs select-bordered w-full" required>
+          <option value="">Select entity…</option>
+          <%= for e <- Map.get(@entity_lists, @new_relationship_target_type, []) do %>
+            <option value={e.id}><%= e.display_name || e.name %></option>
+          <% end %>
+        </select>
+        <div class="flex gap-1">
+          <button type="submit" class="btn btn-primary btn-xs flex-1">Add</button>
+          <button type="button" phx-click="cancel_add_relationship" class="btn btn-ghost btn-xs flex-1">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
     """
   end
 end

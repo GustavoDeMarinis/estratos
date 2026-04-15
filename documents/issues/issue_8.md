@@ -122,26 +122,26 @@ Display and manage relationships on the selected entity from the sidebar.
 
 ### Data loading
 
-- [ ] Extend `apply_select_pin/2` in `map_live.ex` — load `relationships` via `Relationships.list_relationships_for_entity/2` and include in `selected_pin` as `%{pin, entity, parent, relationships}`
-- [ ] Each relationship entry includes the "other side" entity loaded (use the registry's `schema_module/1` + `Repo.get/2` per row) so the sidebar can display its name without N+1 thinking too hard about it for MVP
+- [x] Extend `apply_select_pin/2` — loads relationships, enriches each with `other_entity`, `other_type`, `direction`; stores as `selected_pin.relationships`; resets `:adding_relationship` to false
+- [x] `enrich_relationships/3` private helper uses `apply(Entities, get_fn, [id])` via registry
 
 ### Sidebar display (`sidebar.ex`)
 
-- [ ] Add a "Relationships" section below the existing fields, separated by a divider
-- [ ] For each relationship, render a row with:
-  - The relationship type (e.g. "allied with")
-  - An arrow indicator showing direction (→ if current entity is source, ← if target)
-  - The other entity's `display_name || name`, clickable (fires `"navigate_to_relationship_target"` with the relationship id)
-  - A small trash icon that fires `"delete_relationship"` with `phx-confirm`
-- [ ] Below the list, a collapsed "+ Add Relationship" button that expands an inline form
-- [ ] Inline form contains: type text input (with a datalist of suggestions: `contains`, `allied_with`, `at_war_with`, `trades_with`, `borders`, `controls`), target entity type dropdown (from registry), target entity dropdown (loaded from the selected type's list fn), Save/Cancel buttons
+- [x] `relationships_section` component below `entity_form`, separated by divider
+- [x] Each relationship row: direction arrow (→/←), italic type label, clickable other-entity name, × delete button with confirm
+- [x] "+ Add Relationship" button (+ icon) opens inline form; hidden when form is open
+- [x] Inline form: type text input with datalist suggestions, target type select (registry-driven), target entity select (from entity_lists), Add/Cancel buttons; `phx-change="relationship_form_changed"` drives target entity dropdown
 
 ### `map_live.ex` event handlers
 
-- [ ] `handle_event("add_relationship", params, socket)` — builds attrs with current entity as source, inserts via `Relationships.create_relationship/1`, reloads `selected_pin.relationships`
-- [ ] `handle_event("delete_relationship", %{"id" => id}, socket)` — fetches, deletes, reloads
-- [ ] `handle_event("navigate_to_relationship_target", %{"id" => id}, socket)` — resolves the "other side" entity, finds its pin on the current map (via `Pins.list_pins_for_map` filtered), selects it; flash info if no pin exists on current map
-- [ ] Add assigns for the inline-add form state: `:adding_relationship` (bool), `:new_relationship_target_type` (string) — driving which target-entity dropdown to show
+- [x] `toggle_add_relationship` — opens form, resets `new_relationship_target_type` to first type
+- [x] `cancel_add_relationship` — closes form
+- [x] `relationship_form_changed` — updates `new_relationship_target_type` when target_type select changes
+- [x] `add_relationship` — validates type/target not empty, creates relationship, reloads via `apply_select_pin`
+- [x] `delete_relationship` — fetches, deletes, reloads via `apply_select_pin`
+- [x] `navigate_to_relationship_target` — resolves other side, finds pin on current map, selects or flashes
+- [x] `load_entity_lists` updated to include all listable types (continent, country, city) not just parent types
+- [x] `move_pin_to` updated to preserve relationships in interim selected_pin
 
 ---
 

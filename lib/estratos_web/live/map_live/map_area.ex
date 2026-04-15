@@ -24,6 +24,8 @@ defmodule EstratosWeb.MapLive.MapArea do
   attr :moving_pin, :any, required: true
   attr :entity_lists, :map, required: true
   attr :active_layers, :any, required: true
+  attr :adding_relationship, :boolean, required: true
+  attr :new_relationship_target_type, :string, required: true
 
   def map_viewport(assigns) do
     ~H"""
@@ -45,6 +47,8 @@ defmodule EstratosWeb.MapLive.MapArea do
         editing_fields={@editing_fields}
         moving_pin={@moving_pin}
         entity_lists={@entity_lists}
+        adding_relationship={@adding_relationship}
+        new_relationship_target_type={@new_relationship_target_type}
       />
       <.zoom_controls />
     </main>

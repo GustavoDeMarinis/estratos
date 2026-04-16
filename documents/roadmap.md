@@ -89,6 +89,8 @@ Architectural Decisions:
 6.4) Grid type (square vs hex), resolution, and rendering details are to be further designed.
 6.5) This replaces the polygon zone approach entirely — no freeform geometry needed.
 6.6) PostGIS is no longer required. Spatial representation is handled by the grid model.
+6.7) **Rendering constraint:** Grid cells may number in the thousands per map. DOM nodes are not viable at this scale. The grid MUST be rendered on an HTML `<canvas>` element layered between the map image and the pins overlay. Cells are painted as filled polygons; the canvas redraws on zoom/pan via a single `requestAnimationFrame` call. Pins remain as DOM nodes (they need tooltips, click handlers, and LiveView integration that Canvas cannot provide).
+6.8) **Coordinate transform sharing:** The pan/zoom/letterbox coordinate math currently lives in `map_container.js`. Before implementing grid or relationship lines, this transform logic must be extracted into a shared module so that the Canvas context, SVG viewBox, and pin DOM positioning all consume the same transform. Duplicating the math across renderers will cause drift bugs.
 
 7) Normalized Coordinates
 7.1) Pin positions are stored as normalized float coordinates: `x` (0.0 to 1.0) and `y` (0.0 to 1.0), relative to the map image dimensions.
@@ -121,6 +123,9 @@ Architectural Decisions:
 11.3) The timeline acts as an additional filter — a `currentDate` field lets the user see the world at a specific point in time.
 11.4) Time events can affect entity properties conditionally (e.g., frozen rivers in winter, blocked mountain passes).
 11.5) This is NOT part of MVP but the schema must not block its future implementation.
+11.6) **Data model constraint:** Entity types must remain in separate typed tables — do NOT merge into a single `entities` table for timeline convenience. The polymorphic pattern (type + id) works at single-user scale (hundreds of entities, not millions). N+1 queries across 4–10 typed tables complete in single-digit milliseconds and are simpler to reason about than a discriminator-column mega-table.
+11.7) **Timeline state model:** Relationships represent current state (the world "now"). Time events do not mutate relationships directly — instead, a `TimeEffect` join table records effects (status_change, relationship_created, relationship_removed) with a jsonb payload. Moving the timeline slider applies/reverses effects to derive the world state at any point. This keeps the relationships table clean and avoids temporal columns on every row.
+11.8) **Fallback if N+1 becomes a bottleneck:** Add a lightweight `entity_refs(id, type, entity_id)` lookup table that time_effects and relationships can JOIN against. This gives a single query target without restructuring typed entity tables. Only build this if measured query times justify it.
 
 Non-Functional Requirements:
 
@@ -229,6 +234,7 @@ Requirements:
 8.5) Relationships are creatable, editable, and deletable.
 8.6) Relationships do not depend on maps.
 8.7) Certain relationship types must be visualized on the map as dotted lines between the source and target pins. Color-coded by type: red for `at_war_with`, green for `allied_with`, blue for `trades_with`. Other types may be added later. Lines are only drawn when both pins are visible on the current map and their layers are active.
+8.8) **Rendering constraint:** Relationship lines must use an SVG overlay (not DOM nodes or Canvas). SVG handles zoom/pan transforms natively via viewBox, lines are individually addressable for hover/click, and the expected count (dozens, not thousands) is well within SVG's performance range. The SVG layer sits between the map image and the pins overlay, sharing the same coordinate transform module as the grid Canvas (see 6.8).
 
 9) Data Export and Import
 9.1) Users can export world data (full or partial) as a database dump file for sharing.

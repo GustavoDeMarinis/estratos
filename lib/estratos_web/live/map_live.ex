@@ -43,6 +43,7 @@ defmodule EstratosWeb.MapLive do
       |> assign(:active_layers, Layers.all_slugs())
       |> assign(:adding_relationship, false)
       |> assign(:new_relationship_target_type, "continent")
+      |> assign(:new_relationship_type, "")
       |> load_pins()
       |> load_entity_lists()
       # max_entries: 2 allows selecting a replacement image while keeping the
@@ -92,6 +93,7 @@ defmodule EstratosWeb.MapLive do
         active_layers={@active_layers}
         adding_relationship={@adding_relationship}
         new_relationship_target_type={@new_relationship_target_type}
+        new_relationship_type={@new_relationship_type}
       />
       <Layouts.flash_group flash={@flash} />
       <Modals.world_modal :if={@world_modal} world={@editing_world || @world} mode={@world_modal} />
@@ -163,6 +165,7 @@ defmodule EstratosWeb.MapLive do
     |> assign(:field_values, field_values)
     |> assign(:editing_fields, MapSet.new())
     |> assign(:adding_relationship, false)
+    |> assign(:new_relationship_type, "")
   end
 
   # Loads the "other side" entity for each relationship entry.
@@ -890,17 +893,24 @@ defmodule EstratosWeb.MapLive do
     {:noreply,
      socket
      |> assign(:adding_relationship, true)
-     |> assign(:new_relationship_target_type, first_type)}
+     |> assign(:new_relationship_target_type, first_type)
+     |> assign(:new_relationship_type, "")}
   end
 
   @impl true
   def handle_event("cancel_add_relationship", _params, socket) do
-    {:noreply, assign(socket, :adding_relationship, false)}
+    {:noreply,
+     socket
+     |> assign(:adding_relationship, false)
+     |> assign(:new_relationship_type, "")}
   end
 
   @impl true
-  def handle_event("relationship_form_changed", %{"_target" => ["target_type"], "target_type" => target_type}, socket) do
-    {:noreply, assign(socket, :new_relationship_target_type, target_type)}
+  def handle_event("relationship_form_changed", %{"_target" => ["target_type"], "target_type" => target_type} = params, socket) do
+    {:noreply,
+     socket
+     |> assign(:new_relationship_target_type, target_type)
+     |> assign(:new_relationship_type, Map.get(params, "type", ""))}
   end
 
   def handle_event("relationship_form_changed", _params, socket) do

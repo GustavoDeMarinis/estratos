@@ -26,6 +26,7 @@ defmodule EstratosWeb.MapLive.MapArea do
   attr :active_layers, :any, required: true
   attr :adding_relationship, :boolean, required: true
   attr :new_relationship_target_type, :string, required: true
+  attr :new_relationship_type, :string, required: true
 
   def map_viewport(assigns) do
     ~H"""
@@ -49,6 +50,7 @@ defmodule EstratosWeb.MapLive.MapArea do
         entity_lists={@entity_lists}
         adding_relationship={@adding_relationship}
         new_relationship_target_type={@new_relationship_target_type}
+        new_relationship_type={@new_relationship_type}
       />
       <.zoom_controls />
     </main>

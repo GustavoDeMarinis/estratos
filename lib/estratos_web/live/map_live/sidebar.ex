@@ -14,6 +14,7 @@ defmodule EstratosWeb.MapLive.Sidebar do
   attr :entity_lists, :map, required: true
   attr :adding_relationship, :boolean, required: true
   attr :new_relationship_target_type, :string, required: true
+  attr :new_relationship_type, :string, required: true
 
   def sidebar(assigns) do
     ~H"""
@@ -44,6 +45,7 @@ defmodule EstratosWeb.MapLive.Sidebar do
                 selected_pin={@selected_pin}
                 adding_relationship={@adding_relationship}
                 new_relationship_target_type={@new_relationship_target_type}
+                new_relationship_type={@new_relationship_type}
                 entity_lists={@entity_lists}
               />
             <% end %>
@@ -240,6 +242,7 @@ defmodule EstratosWeb.MapLive.Sidebar do
   attr :selected_pin, :map, required: true
   attr :adding_relationship, :boolean, required: true
   attr :new_relationship_target_type, :string, required: true
+  attr :new_relationship_type, :string, required: true
   attr :entity_lists, :map, required: true
 
   defp relationships_section(assigns) do
@@ -303,6 +306,7 @@ defmodule EstratosWeb.MapLive.Sidebar do
         <input
           type="text"
           name="type"
+          value={@new_relationship_type}
           placeholder="e.g. contains, allied_with…"
           list="relationship-type-suggestions"
           class="input input-xs input-bordered w-full"

@@ -228,6 +228,7 @@ Requirements:
 8.4) Multiple dynamic relationships between the same two entities are allowed.
 8.5) Relationships are creatable, editable, and deletable.
 8.6) Relationships do not depend on maps.
+8.7) Certain relationship types must be visualized on the map as dotted lines between the source and target pins. Color-coded by type: red for `at_war_with`, green for `allied_with`, blue for `trades_with`. Other types may be added later. Lines are only drawn when both pins are visible on the current map and their layers are active.
 
 9) Data Export and Import
 9.1) Users can export world data (full or partial) as a database dump file for sharing.

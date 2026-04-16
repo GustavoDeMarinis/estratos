@@ -6,7 +6,17 @@ A living document of known issues, inefficiencies, and refactoring opportunities
 
 ## Backlog
 
-*(empty — no known items)*
+### Selected Pin Highlight Too Subtle
+
+The ghost-icon halo on the selected pin is functional but not prominent enough. Explore alternatives: thicker ring, animated pulse, or higher-contrast glow. Must not affect layout or the pin's click target.
+
+### Sidebar Should Not Double as Editor
+
+The sidebar currently serves both as the entity detail view and as the inline editor. This mixes read and edit concerns and clutters the panel. Extract entity editing into a dedicated modal so the sidebar stays a clean, read-only detail view.
+
+### Place Pin Button Placement
+
+The "Place Pin" button is in the navbar. It should be repositioned above the zoom-in button in the bottom-right map controls cluster, keeping map-interaction controls grouped together.
 
 ---
 

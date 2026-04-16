@@ -161,20 +161,20 @@ Small polish — give the selected pin a visible highlight on the map.
 
 ## Section 6 — Smoke Test
 
-- [ ] `make up` -> app boots, existing Country/City/Continent/Ocean pins still work unchanged
-- [ ] Pin creation modal still lists all 4 types and filters correctly by active layers
-- [ ] Pin colors are unchanged (registry-driven but identical output)
-- [ ] Sidebar parent dropdown still works for Country and City
-- [ ] Create relationship: select a Continent pin -> sidebar shows empty Relationships section -> click "+ Add Relationship" -> choose type "contains", target type "Country", target "Valdoria" -> Save -> relationship appears in list
-- [ ] Relationship appears from the other side: select the Country -> sidebar shows the reverse-direction entry
-- [ ] Click a relationship target name -> navigates to that entity's pin on the current map
-- [ ] Delete a relationship -> removed from both sides
-- [ ] Delete the Country -> its relationships are gone from the Continent's sidebar too
-- [ ] Select a pin -> visible ring/highlight appears around it
-- [ ] Click a different pin -> highlight moves
-- [ ] Click empty map -> highlight disappears
-- [ ] Toggle off the selected pin's layer -> pin hides, selection cleared (existing behavior preserved)
-- [ ] `make test` -> all tests pass
+- [x] `make up` -> app boots, existing Country/City/Continent/Ocean pins still work unchanged
+- [x] Pin creation modal still lists all 4 types and filters correctly by active layers
+- [x] Pin colors are unchanged (registry-driven but identical output)
+- [x] Sidebar parent dropdown still works for Country and City
+- [x] Create relationship: select a Continent pin -> sidebar shows empty Relationships section -> click "+ Add Relationship" -> choose type "contains", target type "Country", target "Valdoria" -> Save -> relationship appears in list
+- [x] Relationship appears from the other side: select the Country -> sidebar shows the reverse-direction entry
+- [x] Click a relationship target name -> navigates to that entity's pin on the current map
+- [x] Delete a relationship -> removed from both sides
+- [x] Delete the Country -> its relationships are gone from the Continent's sidebar too
+- [x] Select a pin -> visible ring/highlight appears around it
+- [x] Click a different pin -> highlight moves
+- [x] Click empty map -> highlight disappears
+- [x] Toggle off the selected pin's layer -> pin hides, selection cleared (existing behavior preserved)
+- [x] `make test` -> all tests pass
 
 ---
 

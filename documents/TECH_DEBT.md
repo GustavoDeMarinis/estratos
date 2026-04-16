@@ -6,41 +6,17 @@ A living document of known issues, inefficiencies, and refactoring opportunities
 
 ## Backlog
 
-### Entity Type Registry (Hardcoded Dropdowns)
+### Selected Pin Highlight Too Subtle
 
-**Status:** Deferred after Issue 7 Section 3
+The ghost-icon halo on the selected pin is functional but not prominent enough. Explore alternatives: thicker ring, animated pulse, or higher-contrast glow. Must not affect layout or the pin's click target.
 
-**Location:** 
-- `lib/estratos_web/live/map_live/modals.ex` (pin_create_modal dropdown, lines 104-107)
-- `lib/estratos_web/live/map_live/map_area.ex` (pin_color_class, lines 249-253)
-- `lib/estratos_web/live/map_live.ex` (save_pin case statement, lines 533-538; delete_entity case statement, lines 717-721)
+### Sidebar Should Not Double as Editor
 
-**Problem:**
-Entity types are currently hardcoded in multiple places. With only 4 types (Continent, Ocean, Country, City) this is manageable, but will become unmaintainable at 6+ types. Every new entity type requires updates to:
-1. Modal dropdown
-2. Pin color function
-3. save_pin/delete_entity pattern matches
-4. Pins.get_entity_for_pin/1
+The sidebar currently serves both as the entity detail view and as the inline editor. This mixes read and edit concerns and clutters the panel. Extract entity editing into a dedicated modal so the sidebar stays a clean, read-only detail view.
 
-**Solution:**
-Create `Estratos.EntityTypes` module with:
-```elixir
-@entity_types [
-  %{slug: "continent", name: "Continent", color: "text-green-500"},
-  %{slug: "ocean", name: "Ocean", color: "text-blue-500"},
-  %{slug: "country", name: "Country", color: "text-amber-500"},
-  %{slug: "city", name: "City", color: "text-rose-400"}
-]
+### Place Pin Button Placement
 
-def list_types/0
-def get_type/1
-def get_color/1
-def name/1
-```
-
-Then replace hardcoded cases with dynamic dispatch (e.g., `apply(Entities, String.to_atom("create_#{type}"), [world, attrs])`).
-
-**Trigger:** When adding 5th or 6th entity type, or if you find yourself making the same edit to 3+ files.
+The "Place Pin" button is in the navbar. It should be repositioned above the zoom-in button in the bottom-right map controls cluster, keeping map-interaction controls grouped together.
 
 ---
 
@@ -52,6 +28,19 @@ Then replace hardcoded cases with dynamic dispatch (e.g., `apply(Entities, Strin
 
 ## Done / Closed
 
-*Items that have been resolved, moved to production, or deemed unnecessary.*
+### Entity Type Registry (Hardcoded Dropdowns)
+
+**Resolved in:** Issue 8 Section 1
+
+**What was done:**
+Created `Estratos.EntityTypes` module (`lib/estratos/entity_types.ex`) as the single source of truth for each entity type's slug, display name, pin color, parent relationship, layer, schema module, and Entities function names. All four hardcoded callsites were replaced with registry-driven dispatch:
+
+- `map_area.ex` — `pin_color_class/1` removed; `EntityTypes.color/1` used inline; pin layer filter uses `t.layer` from registry
+- `modals.ex` — type dropdown and parent dropdown driven by `EntityTypes.list_types/0` and `EntityTypes.parent_type/1`
+- `sidebar.ex` — parent fieldset driven by `EntityTypes.parent_type/1`; `parent_options/3` helper removed
+- `map_live.ex` — `save_pin`, `delete_entity`, `toggle_field_edit`, `navigate_to_parent`, `load_parent`, `apply_select_pin` all use `apply(Entities, type_info.fn, args)` dispatch
+- `pins.ex` — `get_entity_for_pin/1` replaced with single clause using `type_info.schema_module` + `Repo.get!/2`
+
+Adding a new entity type now requires only one new entry in `@types` in `EntityTypes`.
 
 ---
